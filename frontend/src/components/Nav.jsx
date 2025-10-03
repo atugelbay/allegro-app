@@ -34,6 +34,13 @@ export default function Nav() {
               Уроки
             </Link>
             <Link 
+              to="/progress" 
+              className={`nav-link ${isActive('/progress') ? 'active' : ''}`}
+            >
+              <span className="nav-link-icon">📊</span>
+              Прогресс
+            </Link>
+            <Link 
               to="/trainer" 
               className={`nav-link ${isActive('/trainer') ? 'active' : ''}`}
             >

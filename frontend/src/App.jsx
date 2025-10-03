@@ -8,6 +8,8 @@ import Register from "./pages/Register";
 import Me from "./pages/Me";
 import Subscriptions from "./pages/Subscriptions";
 import Lessons from "./pages/Lessons";
+import LessonDetail from "./pages/LessonDetail";
+import Progress from "./pages/Progress";
 import PitchTrainer from "./pages/PitchTrainer";
 import "./App.css";
 
@@ -33,6 +35,8 @@ function AppContent() {
           <Route path="/me" element={<ProtectedRoute><Me /></ProtectedRoute>} />
           <Route path="/subscriptions" element={<ProtectedRoute><Subscriptions /></ProtectedRoute>} />
           <Route path="/lessons" element={<ProtectedRoute><Lessons /></ProtectedRoute>} />
+          <Route path="/lessons/:id" element={<ProtectedRoute><LessonDetail /></ProtectedRoute>} />
+          <Route path="/progress" element={<ProtectedRoute><Progress /></ProtectedRoute>} />
           <Route path="/trainer" element={<ProtectedRoute><PitchTrainer /></ProtectedRoute>} />
         </Routes>
       </main>

@@ -874,7 +874,7 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
 }
 
 
-export default function PitchTrainer() {
+export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
   const [running, setRunning] = useState(false);
   const [freq, setFreq] = useState(null);
   const [cents, setCents] = useState(null);
@@ -884,6 +884,7 @@ export default function PitchTrainer() {
   const [audioLevel, setAudioLevel] = useState(0); // Добавляем индикатор уровня звука
   const [detectedNotes, setDetectedNotes] = useState([]); // Для отображения найденных нот
   const [chordConfidence, setChordConfidence] = useState(0); // Процент уверенности в аккорде
+  const [isCorrect, setIsCorrect] = useState(false); // Флаг правильного ответа
   
   // Система фиксации аккордов при уверенном распознавании
   const [lockedChord, setLockedChord] = useState(null); // Заблокированный аккорд
@@ -898,6 +899,51 @@ export default function PitchTrainer() {
   const chordHistoryRef = useRef([]); // История последних детекций для стабилизации
   const stableChordRef = useRef(null); // Текущий стабильный аккорд
   const lockReleaseTimerRef = useRef(null); // Таймер сброса блокировки аккорда
+
+  // Устанавливаем режим на основе типа упражнения
+  useEffect(() => {
+    if (type === "chord") {
+      setMode("chord");
+    } else if (type === "note") {
+      setMode("guitar"); // По умолчанию гитара для нот
+    }
+  }, [type]);
+
+  // Проверяем соответствие результата expected значению
+  useEffect(() => {
+    if (!expected || !result) {
+      setIsCorrect(false);
+      return;
+    }
+
+    let detected = null;
+    let correct = false;
+
+    if (type === "chord" && mode === "chord") {
+      // Для аккордов извлекаем название из результата
+      const chordMatch = result.match(/[A-G][#b]?m?/);
+      if (chordMatch) {
+        detected = chordMatch[0];
+        correct = detected === expected;
+      }
+    } else if (type === "note" && (mode === "guitar" || mode === "piano")) {
+      // Для нот извлекаем название из результата
+      const noteMatch = result.match(/[A-G][#b]?/);
+      if (noteMatch) {
+        detected = noteMatch[0];
+        correct = detected === expected;
+      }
+    }
+
+    setIsCorrect(correct);
+
+    // Если ответ правильный, вызываем onSuccess через небольшую задержку
+    if (correct && onSuccess) {
+      setTimeout(() => {
+        onSuccess();
+      }, 1000); // Даем время пользователю увидеть результат
+    }
+  }, [result, expected, type, mode, onSuccess]);
 
   const startTuner = async () => {
     if (running) return;
@@ -1125,7 +1171,42 @@ export default function PitchTrainer() {
 
   return (
     <div style={{ padding: 16 }}>
-      <h2>🎵 Allegro Trainer</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h2>🎵 Тюнер</h2>
+        {onCancel && (
+          <button 
+            onClick={onCancel}
+            style={{ 
+              padding: '8px 16px', 
+              backgroundColor: '#f44336', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Отмена
+          </button>
+        )}
+      </div>
+
+      {/* Показываем ожидаемое значение */}
+      {expected && (
+        <div style={{ 
+          marginBottom: 16, 
+          padding: 12, 
+          backgroundColor: '#e3f2fd', 
+          borderRadius: 8,
+          textAlign: 'center'
+        }}>
+          <h3 style={{ margin: '0 0 8px 0', color: '#1976d2' }}>
+            Ваша задача: сыграть <strong>{expected}</strong>
+          </h3>
+          <p style={{ margin: 0, color: '#666', fontSize: '14px' }}>
+            {type === "chord" ? "Сыграйте аккорд на гитаре" : "Сыграйте ноту на инструменте"}
+          </p>
+        </div>
+      )}
 
       <div style={{ marginBottom: 12 }}>
         <label>Режим: </label>
@@ -1240,7 +1321,22 @@ export default function PitchTrainer() {
           )}
           
           {result ? (
-            <p style={{ fontSize: '18px', fontWeight: 'bold' }}>{result}</p>
+            <div>
+              <p style={{ fontSize: '18px', fontWeight: 'bold' }}>{result}</p>
+              {isCorrect && (
+                <div style={{
+                  marginTop: 16,
+                  padding: 12,
+                  backgroundColor: '#4CAF50',
+                  color: 'white',
+                  borderRadius: 8,
+                  textAlign: 'center'
+                }}>
+                  <h3 style={{ margin: '0 0 8px 0' }}>🎉 Правильно!</h3>
+                  <p style={{ margin: 0 }}>Отлично! Вы сыграли {expected}!</p>
+                </div>
+              )}
+            </div>
           ) : (
             <p style={{ fontStyle: 'italic' }}>Слушаю... Играйте ноту или аккорд</p>
           )}

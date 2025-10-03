@@ -8,7 +8,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
+func getJWTSecret() []byte {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		secret = "default-secret-key"
+	}
+	return []byte(secret)
+}
 
 type Claims struct {
 	UserID int64 `json:"user_id"`
@@ -37,7 +43,7 @@ func GenerateAccessToken(userID int64) (string, error) {
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
+	return token.SignedString(getJWTSecret())
 }
 
 // Генерация Refresh токена
@@ -50,14 +56,14 @@ func GenerateRefreshToken(userID int64) (string, error) {
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
+	return token.SignedString(getJWTSecret())
 }
 
 // Парсинг токена
 func ParseToken(tokenStr string) (*Claims, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-		return jwtSecret, nil
+		return getJWTSecret(), nil
 	})
 	if err != nil || !token.Valid {
 		return nil, err

@@ -211,12 +211,19 @@ func main() {
 		protected.Post("/subscriptions", createSubscriptionHandler)
 		protected.Get("/subscriptions/me", getMySubscriptionHandler)
 
+		// Уроки (временно без проверки подписки)
+		protected.Get("/lessons", handlers.GetLessonsHandler)
+		protected.Get("/lessons/{id}", handlers.GetLessonHandler)
+
+		// Прогресс (временно без проверки подписки)
+		protected.Post("/progress", handlers.UpdateProgressHandler)
+		protected.Get("/progress", handlers.GetUserProgressHandler)
+
 		// контент, доступный только подписчикам
 		protected.Group(func(sub chi.Router) {
 			sub.Use(auth.RequireSubscription)
-			sub.Get("/lessons", func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte("Welcome to premium lessons 🎸🎹"))
-			})
+
+			// Здесь можно добавить другие защищенные эндпоинты
 		})
 	})
 

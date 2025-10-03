@@ -1,86 +1,78 @@
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { useNavigate } from "react-router-dom";
+import { getLessons, getUserProgress } from "../api";
 import "../lessons-styles.css";
 
 export default function Lessons() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lessons, setLessons] = useState([]);
+  const [progress, setProgress] = useState([]);
+  const [hasSubscription, setHasSubscription] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Симуляция загрузки данных
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    loadData();
   }, []);
 
-  const lessons = [
-    {
-      id: 1,
-      title: "Основы гитары",
-      description: "Изучите базовые аккорды и технику игры на гитаре",
-      duration: "15 мин",
-      difficulty: "Начинающий",
-      instrument: "🎸",
-      completed: false,
-      category: "Гитара"
-    },
-    {
-      id: 2,
-      title: "Ритм и темп",
-      description: "Развивайте чувство ритма и научитесь играть в темп",
-      duration: "20 мин",
-      difficulty: "Начинающий",
-      instrument: "🎵",
-      completed: true,
-      category: "Теория"
-    },
-    {
-      id: 3,
-      title: "Основы пианино",
-      description: "Первые шаги в изучении клавишных инструментов",
-      duration: "18 мин",
-      difficulty: "Начинающий",
-      instrument: "🎹",
-      completed: false,
-      category: "Пианино"
-    },
-    {
-      id: 4,
-      title: "Аккорды для популярных песен",
-      description: "Изучите аккорды для исполнения хитов",
-      duration: "25 мин",
-      difficulty: "Средний",
-      instrument: "🎸",
-      completed: false,
-      category: "Гитара"
-    },
-    {
-      id: 5,
-      title: "Импровизация",
-      description: "Развивайте творческие навыки и импровизацию",
-      duration: "30 мин",
-      difficulty: "Продвинутый",
-      instrument: "🎼",
-      completed: false,
-      category: "Творчество"
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [lessonsData, progressData] = await Promise.all([
+        getLessons(),
+        getUserProgress()
+      ]);
+      
+      setLessons(lessonsData);
+      setProgress(progressData);
+      
+      // Проверяем подписку (если есть хотя бы один урок доступен)
+      setHasSubscription(lessonsData.length > 0);
+      
+    } catch (err) {
+      console.error("Error loading lessons:", err);
+      setError(err.message);
+      
+      // Если ошибка 403 (Forbidden) - нет подписки
+      if (err.message.includes("403")) {
+        setHasSubscription(false);
+      }
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const categories = ["Все", "Гитара", "Пианино", "Теория", "Творчество"];
+  const getLessonProgress = (lessonId) => {
+    return progress.find(p => p.lesson_id === lessonId) || {
+      completed_exercises: 0,
+      total_exercises: 0,
+      progress: 0
+    };
+  };
+
+  const getInstrumentEmoji = (instrument) => {
+    if (!instrument) return "🎵";
+    switch(instrument.toLowerCase()) {
+      case "guitar": return "🎸";
+      case "piano": return "🎹";
+      default: return "🎵";
+    }
+  };
+
+  const handleLessonClick = (lessonId) => {
+    if (!lessonId) {
+      console.error('Lesson ID is undefined:', lessonId);
+      return;
+    }
+    navigate(`/lessons/${lessonId}`);
+  };
+
+  const categories = ["Все", "Гитара", "Пианино"];
   const [selectedCategory, setSelectedCategory] = useState("Все");
 
   const filteredLessons = selectedCategory === "Все" 
-    ? lessons 
-    : lessons.filter(lesson => lesson.category === selectedCategory);
-
-  const getDifficultyColor = (difficulty) => {
-    switch(difficulty) {
-      case "Начинающий": return "var(--green-600)";
-      case "Средний": return "var(--yellow-600)";
-      case "Продвинутый": return "var(--red-600)";
-      default: return "var(--neutral-600)";
-    }
-  };
+    ? (Array.isArray(lessons) ? lessons : []) 
+    : (Array.isArray(lessons) ? lessons.filter(lesson => lesson.Instrument && lesson.Instrument.toLowerCase() === selectedCategory.toLowerCase()) : []);
 
   if (loading) {
     return (
@@ -89,6 +81,41 @@ export default function Lessons() {
           <div className="loading-spinner">
             <div className="spinner"></div>
             <p>Загрузка уроков...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasSubscription) {
+    return (
+      <div className="lessons-page">
+        <div className="lessons-container">
+          <div className="subscription-required">
+            <h2>🔒 Требуется подписка</h2>
+            <p>Для доступа к урокам необходимо оформить подписку</p>
+            <button 
+              className="btn btn-primary"
+              onClick={() => navigate('/subscriptions')}
+            >
+              Оформить подписку
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="lessons-page">
+        <div className="lessons-container">
+          <div className="error-message">
+            <h2>❌ Ошибка загрузки</h2>
+            <p>{error}</p>
+            <button className="btn btn-primary" onClick={loadData}>
+              Попробовать снова
+            </button>
           </div>
         </div>
       </div>
@@ -109,8 +136,10 @@ export default function Lessons() {
           <div className="stat-card">
             <div className="stat-icon">✅</div>
             <div className="stat-info">
-              <span className="stat-number">{lessons.filter(l => l.completed).length}</span>
-              <span className="stat-label">Завершено</span>
+              <span className="stat-number">
+                {progress.reduce((total, p) => total + p.completed_exercises, 0)}
+              </span>
+              <span className="stat-label">Выполнено упражнений</span>
             </div>
           </div>
           <div className="stat-card">
@@ -121,12 +150,12 @@ export default function Lessons() {
             </div>
           </div>
           <div className="stat-card">
-            <div className="stat-icon">⏱️</div>
+            <div className="stat-icon">🎯</div>
             <div className="stat-info">
               <span className="stat-number">
-                {lessons.reduce((total, lesson) => total + parseInt(lesson.duration), 0)}
+                {progress.length > 0 ? Math.round(progress.reduce((total, p) => total + p.progress, 0) / progress.length) : 0}%
               </span>
-              <span className="stat-label">Минут обучения</span>
+              <span className="stat-label">Общий прогресс</span>
             </div>
           </div>
         </div>
@@ -146,35 +175,51 @@ export default function Lessons() {
 
         {/* Lessons Grid */}
         <div className="lessons-grid">
-          {filteredLessons.map(lesson => (
-            <div key={lesson.id} className={`lesson-card ${lesson.completed ? 'completed' : ''}`}>
-              <div className="lesson-header">
-                <div className="lesson-instrument">{lesson.instrument}</div>
-                {lesson.completed && <div className="completed-badge">✓</div>}
-              </div>
-              
-              <div className="lesson-content">
-                <h3 className="lesson-title">{lesson.title}</h3>
-                <p className="lesson-description">{lesson.description}</p>
+          {filteredLessons.map(lesson => {
+            if (!lesson) return null;
+            const lessonProgress = getLessonProgress(lesson.ID);
+            const isCompleted = lessonProgress.progress === 100;
+            
+            return (
+              <div key={lesson.ID} className={`lesson-card ${isCompleted ? 'completed' : ''}`}>
+                <div className="lesson-header">
+                  <div className="lesson-instrument">{getInstrumentEmoji(lesson.Instrument)}</div>
+                  {isCompleted && <div className="completed-badge">✓</div>}
+                </div>
                 
-                <div className="lesson-meta">
-                  <span className="lesson-duration">⏱️ {lesson.duration}</span>
-                  <span 
-                    className="lesson-difficulty"
-                    style={{ color: getDifficultyColor(lesson.difficulty) }}
+                <div className="lesson-content">
+                  <h3 className="lesson-title">{lesson.Title || 'Без названия'}</h3>
+                  <p className="lesson-description">{lesson.Description || 'Описание отсутствует'}</p>
+                  
+                  <div className="lesson-meta">
+                    <span className="lesson-instrument-name">{lesson.Instrument || 'Не указан'}</span>
+                    <span className="lesson-exercises">
+                      📝 {lessonProgress.completed_exercises}/{lessonProgress.total_exercises} упражнений
+                    </span>
+                  </div>
+
+                  {lessonProgress.total_exercises > 0 && (
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-fill" 
+                        style={{ width: `${lessonProgress.progress}%` }}
+                      ></div>
+                      <span className="progress-text">{Math.round(lessonProgress.progress)}%</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="lesson-footer">
+                  <button 
+                    className={`btn ${isCompleted ? 'btn-secondary' : 'btn-primary'}`}
+                    onClick={() => handleLessonClick(lesson.ID)}
                   >
-                    🎯 {lesson.difficulty}
-                  </span>
+                    {isCompleted ? 'Повторить урок' : 'Начать урок'}
+                  </button>
                 </div>
               </div>
-
-              <div className="lesson-footer">
-                <button className={`btn ${lesson.completed ? 'btn-secondary' : 'btn-primary'}`}>
-                  {lesson.completed ? 'Повторить' : 'Начать урок'}
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {filteredLessons.length === 0 && (

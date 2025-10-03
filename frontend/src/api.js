@@ -29,3 +29,23 @@ export async function api(path, { method = "GET", body, auth = true } = {}) {
   const ct = res.headers.get("content-type") || "";
   return ct.includes("application/json") ? res.json() : res.text();
 }
+
+// API функции для уроков
+export async function getLessons() {
+  return api("/lessons");
+}
+
+export async function getLesson(id) {
+  return api(`/lessons/${id}`);
+}
+
+export async function updateProgress(exerciseId, status) {
+  return api("/progress", {
+    method: "POST",
+    body: { exercise_id: exerciseId, status }
+  });
+}
+
+export async function getUserProgress() {
+  return api("/progress");
+}
