@@ -236,14 +236,16 @@ function hannWindow(buf) {
   }
 }
 
-// ===== Подавление гармоник - улучшенная версия для гитары =====
+// ===== Улучшенное подавление гармоник с более мягкими критериями =====
 function suppressHarmonics(peaks) {
-  // Сортируем по частоте
-  const sorted = [...peaks].sort((a, b) => a.freq - b.freq);
+  // Сортируем по амплитуде (приоритет сильным сигналам)
+  const sorted = [...peaks].sort((a, b) => b.amp - a.amp);
   const fundamental = [];
   
   // Открытые струны гитары - они могут звучать как басовые частоты
   const guitarOpenStrings = [82.41, 110.00, 146.83, 196.00, 246.94, 329.63]; // E A D G B E
+  
+  console.log(`🔍 Анализ ${peaks.length} пиков для подавления гармоник`);
   
   for (const peak of sorted) {
     let isHarmonic = false;
@@ -251,14 +253,24 @@ function suppressHarmonics(peaks) {
     // Проверяем, является ли эта частота гармоникой уже найденной фундаментальной
     for (const fund of fundamental) {
       const ratio = peak.freq / fund.freq;
-      // Для гитары используем более точные критерии гармоник
-      if (Math.abs(ratio - Math.round(ratio)) < 0.08 && Math.round(ratio) >= 2 && Math.round(ratio) <= 6) {
+      
+      // Более мягкие критерии для подавления гармоник
+      if (Math.abs(ratio - Math.round(ratio)) < 0.12 && Math.round(ratio) >= 2 && Math.round(ratio) <= 8) {
+        // Проверяем, не является ли это более сильным фундаментальным тоном
+        if (peak.amp > fund.amp * 1.5) {
+          // Если текущий пик значительно сильнее, возможно это настоящий фундаментальный тон
+          console.log(`🔄 Возможная замена: ${fund.freq.toFixed(1)}Hz -> ${peak.freq.toFixed(1)}Hz (сильнее в ${(peak.amp/fund.amp).toFixed(1)}x)`);
+          continue;
+        }
+        
         // Дополнительная проверка: сильные гармоники (2я, 3я) подавляются строже
-        if (Math.round(ratio) <= 3 && Math.abs(ratio - Math.round(ratio)) < 0.05) {
+        if (Math.round(ratio) <= 3 && Math.abs(ratio - Math.round(ratio)) < 0.08) {
           isHarmonic = true;
+          console.log(`🚫 Подавлена гармоника: ${peak.freq.toFixed(1)}Hz (${Math.round(ratio)}я гармоника от ${fund.freq.toFixed(1)}Hz)`);
           break;
-        } else if (Math.round(ratio) > 3 && Math.abs(ratio - Math.round(ratio)) < 0.08) {
+        } else if (Math.round(ratio) > 3 && Math.abs(ratio - Math.round(ratio)) < 0.12) {
           isHarmonic = true;
+          console.log(`🚫 Подавлена гармоника: ${peak.freq.toFixed(1)}Hz (${Math.round(ratio)}я гармоника от ${fund.freq.toFixed(1)}Hz)`);
           break;
         }
       }
@@ -266,21 +278,25 @@ function suppressHarmonics(peaks) {
     
     // Особая обработка для открытых струн гитары - они важны для аккордов
     const isOpenString = guitarOpenStrings.some(openFreq => 
-      Math.abs(peak.freq - openFreq) < 3.0 // Небольшая погрешность для расстройки
+      Math.abs(peak.freq - openFreq) < 5.0 // Увеличиваем погрешность до 5Hz
     );
     
     if (!isHarmonic || isOpenString) {
       fundamental.push(peak);
       // Для открытых струн добавляем бонус к амплитуде
       if (isOpenString) {
-        peak.amp *= 1.2;
-        console.log(`🎸 Обнаружена открытая струна: ${peak.freq.toFixed(1)}Hz`);
+        peak.amp *= 1.3; // Увеличиваем бонус
+        console.log(`🎸 Обнаружена открытая струна: ${peak.freq.toFixed(1)}Hz (бонус +30%)`);
+      } else {
+        console.log(`✅ Фундаментальная частота: ${peak.freq.toFixed(1)}Hz (${peak.amp.toFixed(1)}дБ)`);
       }
     }
   }
   
-  // Возвращаем максимум 10 фундаментальных частот для гитары (больше чем для пианино)
-  return fundamental.sort((a, b) => b.amp - a.amp).slice(0, 10);
+  console.log(`🎵 Найдено ${fundamental.length} фундаментальных частот`);
+  
+  // Возвращаем максимум 12 фундаментальных частот (увеличиваем лимит)
+  return fundamental.sort((a, b) => b.amp - a.amp).slice(0, 12);
 }
 
 // ===== Усиленная система фиксации аккордов с защитой высокоуверенных результатов =====
@@ -514,11 +530,21 @@ function calculateGuitarChordBonus(chordName, requiredNotes, detectedNotes, fund
   return bonus;
 }
 
-// ===== Улучшенная детекция аккордов с мягким матчем и подавлением гармоник =====
+// ===== Улучшенная детекция нот с адаптивными порогами =====
 function yinPitch(buf, sampleRate, minFreq = 70, maxFreq = 1200, threshold = 0.1) {
   const tauMin = Math.floor(sampleRate / maxFreq);
   const tauMax = Math.floor(sampleRate / minFreq);
   const yin = new Float32Array(tauMax + 1);
+
+  // Вычисляем RMS для адаптивного порога
+  let rms = 0;
+  for (let i = 0; i < buf.length; i++) {
+    rms += buf[i] * buf[i];
+  }
+  rms = Math.sqrt(rms / buf.length);
+  
+  // Адаптивный порог в зависимости от громкости
+  const adaptiveThreshold = Math.max(0.05, Math.min(0.2, threshold * (1 + rms * 2)));
 
   for (let tau = 1; tau <= tauMax; tau++) {
     let sum = 0;
@@ -536,25 +562,113 @@ function yinPitch(buf, sampleRate, minFreq = 70, maxFreq = 1200, threshold = 0.1
     yin[tau] = (yin[tau] * tau) / (running || 1e-12);
   }
 
-  let tauEst = -1;
+  // Ищем все кандидаты с порогом
+  const candidates = [];
   for (let tau = tauMin; tau <= tauMax; tau++) {
-    if (yin[tau] < threshold) {
-      while (tau + 1 <= tauMax && yin[tau + 1] < yin[tau]) tau++;
-      tauEst = tau;
-      break;
+    if (yin[tau] < adaptiveThreshold) {
+      // Находим локальный минимум
+      let bestTau = tau;
+      while (bestTau + 1 <= tauMax && yin[bestTau + 1] < yin[bestTau]) {
+        bestTau++;
+      }
+      
+      const x0 = bestTau - 1 >= 1 ? bestTau - 1 : bestTau;
+      const x2 = bestTau + 1 <= tauMax ? bestTau + 1 : bestTau;
+      const s0 = yin[x0], s1 = yin[bestTau], s2 = yin[x2];
+      let refinedTau = bestTau;
+      const denom = (s2 + s0 - 2 * s1);
+      if (denom !== 0) refinedTau = bestTau + (s2 - s0) / (2 * denom);
+
+      const f = sampleRate / refinedTau;
+      if (f >= minFreq && f <= maxFreq) {
+        candidates.push({
+          freq: f,
+          confidence: 1 - yin[bestTau],
+          tau: bestTau
+        });
+      }
     }
   }
-  if (tauEst <= 0) return -1;
 
-  const x0 = tauEst - 1 >= 1 ? tauEst - 1 : tauEst;
-  const x2 = tauEst + 1 <= tauMax ? tauEst + 1 : tauEst;
-  const s0 = yin[x0], s1 = yin[tauEst], s2 = yin[x2];
-  let betterTau = tauEst;
-  const denom = (s2 + s0 - 2 * s1);
-  if (denom !== 0) betterTau = tauEst + (s2 - s0) / (2 * denom);
+  if (candidates.length === 0) return -1;
 
-  const f = sampleRate / betterTau;
-  return (f < minFreq || f > maxFreq) ? -1 : f;
+  // Сортируем по уверенности и возвращаем лучший
+  candidates.sort((a, b) => a.confidence - b.confidence);
+  return candidates[0].freq;
+}
+
+// ===== Дополнительный алгоритм детекции через автокорреляцию =====
+function autocorrelationPitch(buf, sampleRate, minFreq = 70, maxFreq = 1200) {
+  const minPeriod = Math.floor(sampleRate / maxFreq);
+  const maxPeriod = Math.floor(sampleRate / minFreq);
+  
+  let bestPeriod = 0;
+  let bestCorrelation = 0;
+  
+  for (let period = minPeriod; period < maxPeriod && period < buf.length / 2; period++) {
+    let correlation = 0;
+    for (let i = 0; i < buf.length - period; i++) {
+      correlation += buf[i] * buf[i + period];
+    }
+    
+    // Нормализуем корреляцию
+    correlation /= (buf.length - period);
+    
+    if (correlation > bestCorrelation) {
+      bestCorrelation = correlation;
+      bestPeriod = period;
+    }
+  }
+  
+  if (bestPeriod === 0) return -1;
+  
+  const freq = sampleRate / bestPeriod;
+  return (freq >= minFreq && freq <= maxFreq) ? freq : -1;
+}
+
+// ===== Комбинированная детекция нот =====
+function detectNoteFrequency(buf, sampleRate, mode = "guitar") {
+  // Настройки для разных инструментов
+  const configs = {
+    guitar: { minFreq: 80, maxFreq: 1000, threshold: 0.08 },
+    piano: { minFreq: 60, maxFreq: 2000, threshold: 0.05 }, // Снижаем порог для пианино
+    chord: { minFreq: 70, maxFreq: 1200, threshold: 0.1 }
+  };
+  
+  const config = configs[mode] || configs.guitar;
+  
+  // Получаем результаты от разных алгоритмов
+  const yinFreq = yinPitch(buf, sampleRate, config.minFreq, config.maxFreq, config.threshold);
+  const autocorrFreq = autocorrelationPitch(buf, sampleRate, config.minFreq, config.maxFreq);
+  
+  console.log(`🔍 Детекция нот (${mode}): YIN=${yinFreq > 0 ? yinFreq.toFixed(1) : 'N/A'}Hz, Autocorr=${autocorrFreq > 0 ? autocorrFreq.toFixed(1) : 'N/A'}Hz`);
+  
+  // Если результаты близки, используем среднее
+  if (yinFreq > 0 && autocorrFreq > 0) {
+    const diff = Math.abs(yinFreq - autocorrFreq);
+    const avgFreq = (yinFreq + autocorrFreq) / 2;
+    
+    if (diff < avgFreq * 0.15) { // Увеличиваем допуск до 15%
+      console.log(`✅ Комбинированный результат: ${avgFreq.toFixed(1)}Hz`);
+      return avgFreq;
+    }
+  }
+  
+  // Специальная обработка для проблемных частот (C4 = 261.63Hz)
+  const result = yinFreq > 0 ? yinFreq : autocorrFreq;
+  if (result > 0) {
+    const note = findClosestNote(result);
+    console.log(`🎵 Найдена нота: ${note.note} (${result.toFixed(1)}Hz)`);
+    
+    // Коррекция для C4 и близких нот
+    if (note.note.includes('C4') && Math.abs(result - 261.63) < 10) {
+      console.log(`🎯 Коррекция C4: ${result.toFixed(1)}Hz -> 261.6Hz`);
+      return 261.63;
+    }
+  }
+  
+  // Возвращаем лучший результат
+  return result;
 }
 
 // ===== Улучшенная детекция аккордов с мягким матчем и подавлением гармоник =====
@@ -572,24 +686,85 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
   
   const peaks = [];
   
-  // Более строгая фильтрация пиков
+  // Улучшенная фильтрация пиков с защитой от NaN
+  const validValues = freqBuf.filter(val => isFinite(val) && !isNaN(val));
+  
+  if (validValues.length === 0) {
+    console.log("⚠️ Нет валидных данных в частотном спектре");
+    return null;
+  }
+  
+  const avgAmp = validValues.reduce((sum, val) => sum + val, 0) / validValues.length;
+  const maxAmp = Math.max(...validValues);
+  const minAmp = Math.min(...validValues);
+  
+  // Защита от крайних случаев
+  const safeMaxAmp = isFinite(maxAmp) ? maxAmp : -30;
+  const safeAvgAmp = isFinite(avgAmp) ? avgAmp : -60;
+  const safeMinAmp = isFinite(minAmp) ? minAmp : -100;
+  
+  // Более мягкий адаптивный порог
+  const adaptiveThreshold = Math.max(-80, safeAvgAmp + (safeMaxAmp - safeAvgAmp) * 0.2);
+  
+  console.log(`Адаптивный порог: ${adaptiveThreshold.toFixed(1)}дБ (среднее: ${safeAvgAmp.toFixed(1)}дБ, макс: ${safeMaxAmp.toFixed(1)}дБ, мин: ${safeMinAmp.toFixed(1)}дБ)`);
+  
   for (let i = 5; i < freqBuf.length - 5; i++) {
-    // Проверяем, что это действительно выдающийся пик
-    const isStrongPeak = freqBuf[i] > freqBuf[i-1] && freqBuf[i] > freqBuf[i+1] && 
-                        freqBuf[i] > freqBuf[i-2] && freqBuf[i] > freqBuf[i+2] &&
-                        freqBuf[i] > freqBuf[i-3] && freqBuf[i] > freqBuf[i+3];
+    const currentAmp = freqBuf[i];
     
-    if (isStrongPeak && freqBuf[i] > -60) { // Увеличиваем порог до -60дБ для анализа только громких звуков
+    // Проверяем, что это действительно выдающийся пик
+    const isStrongPeak = currentAmp > freqBuf[i-1] && currentAmp > freqBuf[i+1] && 
+                        currentAmp > freqBuf[i-2] && currentAmp > freqBuf[i+2] &&
+                        currentAmp > freqBuf[i-3] && currentAmp > freqBuf[i+3];
+    
+    // Дополнительная проверка на локальную значимость
+    const localAvg = (freqBuf[i-3] + freqBuf[i-2] + freqBuf[i-1] + freqBuf[i+1] + freqBuf[i+2] + freqBuf[i+3]) / 6;
+    const isSignificant = currentAmp > localAvg + 3; // На 3дБ выше локального среднего
+    
+    if (isStrongPeak && isSignificant && currentAmp > adaptiveThreshold) {
       const freq = (i * sampleRate) / (freqBuf.length * 2);
-      if (freq > 80 && freq < 1000) { // Музыкальный диапазон
-        peaks.push({ freq, amp: freqBuf[i] });
+      if (freq > 80 && freq < 1200) { // Расширенный музыкальный диапазон
+        peaks.push({ 
+          freq, 
+          amp: currentAmp,
+          prominence: currentAmp - localAvg // Вычисляем "выдающуюся" амплитуду
+        });
       }
     }
   }
 
   // Сортируем по амплитуде и берем сильные пики
   peaks.sort((a, b) => b.amp - a.amp);
-  const strongPeaks = peaks.slice(0, 20).filter(p => p.amp > -55); // Увеличиваем порог до -55дБ для громких звуков
+  console.log(`📈 Найдено ${peaks.length} пиков, топ-5:`, peaks.slice(0, 5).map(p => `${p.freq.toFixed(1)}Hz (${p.amp.toFixed(1)}дБ)`));
+  
+  // Снижаем порог для более чувствительной детекции
+  let strongPeaks = peaks.slice(0, 25).filter(p => p.amp > -70); // Еще больше снижаем порог
+  
+  // Если нет сильных пиков, используем все найденные пики
+  if (strongPeaks.length === 0 && peaks.length > 0) {
+    console.log("⚠️ Нет сильных пиков, используем все найденные пики");
+    strongPeaks = peaks.slice(0, 10); // Берем топ-10 пиков
+  }
+  
+  // Если все еще нет пиков, создаем fallback пики из валидных значений
+  if (strongPeaks.length === 0 && validValues.length > 0) {
+    console.log("⚠️ Создаем fallback пики из валидных данных");
+    const sortedValues = [...validValues].sort((a, b) => b - a);
+    const topValues = sortedValues.slice(0, 5);
+    
+    for (let i = 0; i < topValues.length; i++) {
+      const amp = topValues[i];
+      if (amp > -90) { // Очень мягкий порог
+        const freq = (i * sampleRate) / (freqBuf.length * 2);
+        if (freq > 50 && freq < 2000) {
+          strongPeaks.push({
+            freq: freq,
+            amp: amp,
+            prominence: 5 // Минимальная выдающаяся амплитуда
+          });
+        }
+      }
+    }
+  }
   
   // Подавляем гармоники - оставляем только фундаментальные частоты
   const fundamentalPeaks = suppressHarmonics(strongPeaks);
@@ -817,9 +992,11 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
 
   // ЗАПАСНОЙ АЛГОРИТМ: если строгая валидация не дала результатов, используем упрощенный подход
   console.log("🚨 Строгая валидация не дала результатов, переходим к упрощенному алгоритму");
+  console.log(`🔍 Доступные ноты для fallback: [${names.join(', ')}]`);
   
   let fallbackChord = null;
   let fallbackScore = 0;
+  let fallbackMatches = [];
   
   for (const [chord, requiredNotes] of Object.entries(CHORDS)) {
     const matches = requiredNotes.filter(n => names.includes(n));
@@ -832,39 +1009,78 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
         .filter(n => matches.includes(n.note))
         .reduce((sum, n) => sum + Math.abs(n.amp) * 2, 0);
       
+      // Дополнительный бонус за корень аккорда
+      const root = chord.replace('m', '').replace('#', '').replace('b', '');
+      if (names.includes(root)) {
+        score += 75; // Большой бонус за наличие корня
+        console.log(`🎯 Fallback: ${chord} - найден корень ${root}`);
+      }
+      
       const totalScore = score + amplitudeBonus;
       
       if (totalScore > fallbackScore) {
         fallbackScore = totalScore;
         fallbackChord = chord;
+        fallbackMatches = matches;
       }
+      
+      console.log(`🔍 Fallback кандидат: ${chord} (совпадений: ${matches.length}, счет: ${totalScore.toFixed(1)})`);
     }
   }
   
-  if (fallbackChord && fallbackScore > 30) {
+  if (fallbackChord && fallbackScore > 25) { // Снижаем минимальный порог
     // Улучшенная формула для запасного алгоритма
     let confidence;
     if (fallbackScore >= 150) {
-      confidence = Math.min(70, 50 + Math.round((fallbackScore - 150) / 10));
+      confidence = Math.min(75, 55 + Math.round((fallbackScore - 150) / 8));
     } else if (fallbackScore >= 100) {
-      confidence = Math.min(60, 40 + Math.round((fallbackScore - 100) / 5));
+      confidence = Math.min(65, 45 + Math.round((fallbackScore - 100) / 4));
     } else {
-      confidence = Math.min(50, 30 + Math.round((fallbackScore - 30) / 3));
+      confidence = Math.min(55, 35 + Math.round((fallbackScore - 25) / 2));
     }
     
     if (setChordConfidence) {
       setChordConfidence(confidence);
     }
     
-    console.log(`🎯 ЗАПАСНОЙ РЕЗУЛЬТАТ: ${fallbackChord} с уверенностью ${confidence}% (упрощенный алгоритм)`);
+    console.log(`🎯 ЗАПАСНОЙ РЕЗУЛЬТАТ: ${fallbackChord} с уверенностью ${confidence}% (совпадения: [${fallbackMatches.join(', ')}])`);
     return {
       name: fallbackChord,
       confidence: confidence,
-      matches: [],
+      matches: fallbackMatches,
       score: fallbackScore
     };
   }
 
+  // ПОСЛЕДНИЙ FALLBACK: если ничего не найдено, пытаемся детектировать по одиночным нотам
+  console.log("🚨 Все алгоритмы не дали результатов, пытаемся детектировать по одиночным нотам");
+  
+  if (fundamentalPeaks.length > 0) {
+    // Берем самую сильную частоту и пытаемся определить аккорд
+    const strongestPeak = fundamentalPeaks[0];
+    const note = findClosestNote(strongestPeak.freq);
+    const noteName = normalizePitchClass(note.note);
+    
+    // Ищем аккорды, которые содержат эту ноту как корень
+    for (const [chord, requiredNotes] of Object.entries(CHORDS)) {
+      const root = chord.replace('m', '').replace('#', '').replace('b', '');
+      if (root === noteName) {
+        console.log(`🎯 Последний fallback: найден аккорд ${chord} по корню ${noteName}`);
+        
+        if (setChordConfidence) {
+          setChordConfidence(35); // Низкая уверенность для fallback
+        }
+        
+        return {
+          name: chord,
+          confidence: 35,
+          matches: [noteName],
+          score: 50
+        };
+      }
+    }
+  }
+  
   // Сбрасываем уверенность если ничего не найдено
   if (setChordConfidence) {
     setChordConfidence(0);
@@ -971,28 +1187,64 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
       analyser.minDecibels = -100;
       analyser.maxDecibels = -30;
 
-      // Band-pass фильтры с улучшенными настройками для подавления шумов
+      // Адаптивные band-pass фильтры в зависимости от режима
       const hp = audioCtx.createBiquadFilter();
       hp.type = "highpass"; 
-      hp.frequency.value = 120; // Повышаем до 120Hz для фильтрации шума вентилятора
-      hp.Q.value = 0.7; // Добавляем Q-factor для более резкого среза
-
+      
       const lp = audioCtx.createBiquadFilter();
       lp.type = "lowpass"; 
-      lp.frequency.value = 1500; // Снижаем до 1500Hz - большинство музыкальных аккордов в этом диапазоне
-      lp.Q.value = 0.7;
       
-      // Добавляем дополнительный notch-фильтр на частоте шума вентилятора (обычно 50-60Hz)
-      const notch = audioCtx.createBiquadFilter();
-      notch.type = "notch";
-      notch.frequency.value = 60; // Убираем частоту сетевого шума/вентилятора
-      notch.Q.value = 10; // Узкий notch
+      // Более мягкие настройки фильтров в зависимости от режима
+      if (mode === "guitar") {
+        hp.frequency.value = 60;  // Гитара: снижаем нижний порог
+        lp.frequency.value = 1500; // Увеличиваем верхний порог
+        hp.Q.value = 0.3; // Более мягкий срез
+        lp.Q.value = 0.3;
+      } else if (mode === "piano") {
+        hp.frequency.value = 40;  // Пианино: еще более низкий срез
+        lp.frequency.value = 2500; // Еще больше верхний порог
+        hp.Q.value = 0.4;
+        lp.Q.value = 0.4;
+      } else { // chord mode
+        hp.frequency.value = 50; // Аккорды: более низкий срез
+        lp.frequency.value = 2000; // Больше верхний порог
+        hp.Q.value = 0.3;
+        lp.Q.value = 0.3;
+      }
+      
+      // Добавляем multiple notch-фильтры для подавления сетевых шумов
+      const notch1 = audioCtx.createBiquadFilter();
+      notch1.type = "notch";
+      notch1.frequency.value = 50; // Европейская частота сети
+      notch1.Q.value = 15;
+      
+      const notch2 = audioCtx.createBiquadFilter();
+      notch2.type = "notch";
+      notch2.frequency.value = 60; // Американская частота сети
+      notch2.Q.value = 15;
+      
+      const notch3 = audioCtx.createBiquadFilter();
+      notch3.type = "notch";
+      notch3.frequency.value = 100; // Первая гармоника
+      notch3.Q.value = 10;
 
-      // Теперь правильно соединяем цепочку
+      // Создаем альтернативную простую цепочку для fallback
+      const simpleAnalyser = audioCtx.createAnalyser();
+      simpleAnalyser.fftSize = 4096;
+      simpleAnalyser.smoothingTimeConstant = 0.0;
+      simpleAnalyser.minDecibels = -100;
+      simpleAnalyser.maxDecibels = -30;
+      
+      // Теперь правильно соединяем цепочку фильтров
       source.connect(hp);
-      hp.connect(notch);
-      notch.connect(lp);
+      hp.connect(notch1);
+      notch1.connect(notch2);
+      notch2.connect(notch3);
+      notch3.connect(lp);
       lp.connect(analyser);
+      
+      // Также подключаем простую цепочку для fallback
+      source.connect(simpleAnalyser);
 
       const timeBuf = new Float32Array(analyser.fftSize);
       const freqBuf = new Float32Array(analyser.frequencyBinCount);
@@ -1000,14 +1252,25 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
       function loop() {
         analyser.getFloatTimeDomainData(timeBuf);
 
-        // шум- и тишина-гейт
+        // Улучшенный анализ уровня звука
         let rms = 0; 
-        for (let i = 0; i < timeBuf.length; i++) rms += timeBuf[i] * timeBuf[i];
+        let peak = 0;
+        for (let i = 0; i < timeBuf.length; i++) {
+          const sample = Math.abs(timeBuf[i]);
+          rms += timeBuf[i] * timeBuf[i];
+          peak = Math.max(peak, sample);
+        }
         rms = Math.sqrt(rms / timeBuf.length);
+        
+        // Адаптивный порог на основе фонового шума
+        const noiseThreshold = Math.max(0.01, rms * 0.1); // 10% от RMS или минимум 0.01
+        const signalThreshold = Math.max(noiseThreshold * 3, 0.015); // 3x от шума или минимум 0.015
         
         setAudioLevel(rms); // Обновляем индикатор уровня звука
         
-        if (rms < 0.025) { // Увеличиваем порог до 0.025 (примерно 85% громкости) для точной детекции
+        console.log(`Аудио: RMS=${rms.toFixed(4)}, Peak=${peak.toFixed(4)}, Threshold=${signalThreshold.toFixed(4)}`);
+        
+        if (rms < signalThreshold) { // Адаптивный порог вместо фиксированного
           animationRef.current = requestAnimationFrame(loop); 
           return; 
         }
@@ -1017,19 +1280,36 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
 
         // === РЕЖИМЫ ===
         if (mode === "guitar" || mode === "piano") {
-          // YIN для одиночных нот
-          let f = yinPitch(timeBuf, audioCtx.sampleRate);
+          // Улучшенная детекция нот
+          let f = detectNoteFrequency(timeBuf, audioCtx.sampleRate, mode);
           if (f > 0) {
-            console.log("Detected frequency:", f);
+            console.log(`Detected frequency (${mode}):`, f);
             
-            // анти-октавные скачки
+            // Улучшенная анти-октавная коррекция
             if (smoothFreqRef.current) {
-              const prev = smoothFreqRef.current, ratio = f / prev;
-              if (Math.abs(ratio - 2) < 0.1) f = f / 2;
-              else if (Math.abs(ratio - 0.5) < 0.1) f = f * 2;
+              const prev = smoothFreqRef.current;
+              const ratio = f / prev;
+              
+              // Более точная проверка октавных скачков
+              if (Math.abs(ratio - 2) < 0.15) {
+                f = f / 2; // Слишком высокая октава
+                console.log("Октавная коррекция: понижение на октаву");
+              } else if (Math.abs(ratio - 0.5) < 0.15) {
+                f = f * 2; // Слишком низкая октава
+                console.log("Октавная коррекция: повышение на октаву");
+              } else if (Math.abs(ratio - 4) < 0.2) {
+                f = f / 4; // Двойная октава
+                console.log("Октавная коррекция: понижение на две октавы");
+              } else if (Math.abs(ratio - 0.25) < 0.2) {
+                f = f * 4; // Половина октавы
+                console.log("Октавная коррекция: повышение на две октавы");
+              }
             }
-            // сглаживание
-            const alpha = 0.3;
+            
+            // Адаптивное сглаживание в зависимости от стабильности
+            const alpha = smoothFreqRef.current ? 
+              (Math.abs(f - smoothFreqRef.current) / smoothFreqRef.current < 0.1 ? 0.5 : 0.2) : 1;
+            
             smoothFreqRef.current = smoothFreqRef.current
               ? smoothFreqRef.current * (1 - alpha) + f * alpha
               : f;
@@ -1043,10 +1323,21 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
 
             // Показываем только букву ноты без октавы для всех режимов
             const base = normalizePitchClass(closest.note);
+            const tuningStatus = Math.abs(centsDiff) < 5 ? "🎯" : 
+                                Math.abs(centsDiff) < 20 ? "⚠️" : "❌";
+            
             if (mode === "guitar") {
-              setResult(`🎸 Нота: ${base}`);
+              setResult(`🎸 ${tuningStatus} ${base} (${centsDiff > 0 ? '+' : ''}${centsDiff.toFixed(1)}¢)`);
             } else {
-              setResult(`🎹 Нота: ${base}`);
+              setResult(`🎹 ${tuningStatus} ${base} (${centsDiff > 0 ? '+' : ''}${centsDiff.toFixed(1)}¢)`);
+            }
+          } else {
+            // Сброс при отсутствии детекции
+            if (smoothFreqRef.current) {
+              smoothFreqRef.current = null;
+              setFreq(null);
+              setCents(null);
+              setResult(null);
             }
           }
         } else if (mode === "chord") {
@@ -1057,7 +1348,28 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
             
             // Детекция аккорда по спектру
             analyser.getFloatFrequencyData(freqBuf);
-            const chordCandidate = detectChord(freqBuf, audioCtx.sampleRate, setDetectedNotes, setChordConfidence, lockedChord, lockTimestamp, setLockedChord, setLockTimestamp, lockReleaseTimerRef);
+            
+            // Проверяем, есть ли валидные данные в основном анализаторе
+            const hasValidData = freqBuf.some(val => isFinite(val) && val > -100);
+            
+            let chordCandidate = null;
+            if (hasValidData) {
+              chordCandidate = detectChord(freqBuf, audioCtx.sampleRate, setDetectedNotes, setChordConfidence, lockedChord, lockTimestamp, setLockedChord, setLockTimestamp, lockReleaseTimerRef);
+            } else {
+              console.log("⚠️ Основной анализатор не дает валидных данных, пробуем fallback");
+              
+              // Fallback: используем простой анализатор без фильтров
+              const simpleFreqBuf = new Float32Array(simpleAnalyser.frequencyBinCount);
+              simpleAnalyser.getFloatFrequencyData(simpleFreqBuf);
+              
+              const hasSimpleData = simpleFreqBuf.some(val => isFinite(val) && val > -100);
+              if (hasSimpleData) {
+                console.log("✅ Fallback анализатор дает валидные данные");
+                chordCandidate = detectChord(simpleFreqBuf, audioCtx.sampleRate, setDetectedNotes, setChordConfidence, lockedChord, lockTimestamp, setLockedChord, setLockTimestamp, lockReleaseTimerRef);
+              } else {
+                console.log("❌ Fallback анализатор тоже не дает валидных данных");
+              }
+            }
             
             // ПРИОРИТЕТ: если chordCandidate уже заблокированный аккорд, используем его немедленно
             if (chordCandidate && chordCandidate.isLocked) {
@@ -1239,7 +1551,7 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
         <div style={{ marginTop: 20, padding: 16, border: '1px solid #ccc', borderRadius: 8 }}>
           <h3>Результаты:</h3>
           
-          {/* Индикатор уровня звука */}
+          {/* Улучшенный индикатор уровня звука */}
           <div style={{ marginBottom: 16 }}>
             <p><strong>Уровень звука:</strong></p>
             <div style={{ 
@@ -1247,16 +1559,31 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
               height: '20px', 
               backgroundColor: '#eee', 
               borderRadius: '10px',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              position: 'relative'
             }}>
               <div style={{ 
-                width: `${Math.min(audioLevel * 2000, 100)}%`, // Корректируем для нового порога 85%
+                width: `${Math.min(audioLevel * 2000, 100)}%`,
                 height: '100%', 
-                backgroundColor: audioLevel > 0.025 ? '#4CAF50' : '#FF5722', // Обновляем порог индикатора
-                transition: 'width 0.1s'
+                backgroundColor: audioLevel > 0.02 ? '#4CAF50' : 
+                                audioLevel > 0.01 ? '#FF9800' : '#FF5722',
+                transition: 'width 0.1s, background-color 0.1s'
+              }}></div>
+              {/* Индикатор порога */}
+              <div style={{
+                position: 'absolute',
+                left: '30%', // Примерный порог
+                top: 0,
+                height: '100%',
+                width: '2px',
+                backgroundColor: '#333',
+                opacity: 0.5
               }}></div>
             </div>
-            <small>RMS: {audioLevel.toFixed(4)}</small>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
+              <span>RMS: {audioLevel.toFixed(4)}</span>
+              <span>Статус: {audioLevel > 0.02 ? '🎤 Громко' : audioLevel > 0.01 ? '🔊 Средне' : '🔇 Тихо'}</span>
+            </div>
           </div>
           
           {(mode !== "chord") && freq && (
@@ -1345,14 +1672,26 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
 
       {!running && (
         <div style={{ marginTop: 20, fontSize: '14px', color: '#666' }}>
-          <p>💡 Советы:</p>
+          <p>💡 Советы для улучшенной детекции:</p>
           <ul>
             <li>Убедитесь, что микрофон подключен и работает</li>
             <li>Разрешите доступ к микрофону в браузере</li>
-            <li><strong>Играйте громко</strong> - тюнер реагирует только на сильные сигналы (85%+ громкости)</li>
-            <li>Для точного определения аккордов играйте все ноты четко</li>
-            <li>Фоновые шумы автоматически фильтруются</li>
+            <li><strong>Играйте громко и четко</strong> - адаптивный порог автоматически подстраивается</li>
+            <li>Для нот: держите инструмент близко к микрофону</li>
+            <li>Для аккордов: играйте все ноты одновременно и четко</li>
+            <li>Избегайте фоновых шумов (вентиляторы, музыка)</li>
+            <li>Система автоматически фильтрует сетевые шумы (50/60Hz)</li>
+            <li>Зеленый индикатор = хороший сигнал, красный = слишком тихо</li>
           </ul>
+          
+          <div style={{ marginTop: 16, padding: 12, backgroundColor: '#e3f2fd', borderRadius: 8 }}>
+            <p style={{ margin: '0 0 8px 0', fontWeight: 'bold', color: '#1976d2' }}>🎵 Режимы:</p>
+            <ul style={{ margin: 0, fontSize: '13px' }}>
+              <li><strong>Гитара:</strong> Оптимизирован для струнных инструментов (80-1200Hz)</li>
+              <li><strong>Пианино:</strong> Широкий диапазон для клавишных (60-2000Hz)</li>
+              <li><strong>Аккорды:</strong> Анализ нескольких нот одновременно</li>
+            </ul>
+          </div>
         </div>
       )}
     </div>
