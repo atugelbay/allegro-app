@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"allegro/backend/internal/auth"
-	"allegro/backend/internal/db"
+	"sonara-space/backend/internal/auth"
+	"sonara-space/backend/internal/db"
 )
 
 type CreatePaymentRequest struct {

@@ -1,5 +1,5 @@
 import { Routes, Route } from "react-router-dom";
-import { useAuth } from "./auth";
+import { useAuth } from "./hooks/useAuth";
 import Nav from "./components/Nav";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";

@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { PitchDetector } from "pitchy";
 
-const PitchTrainerPitchy = ({ expected, onSuccess, onCancel, hidden = false }) => {
+const PitchTrainerPitchy = ({ expected, onSuccess, hidden = false }) => {
   const [running, setRunning] = useState(false);
   const [mode, setMode] = useState("guitar"); // guitar, piano, chord
   const [freq, setFreq] = useState(null);
@@ -40,7 +40,7 @@ const PitchTrainerPitchy = ({ expected, onSuccess, onCancel, hidden = false }) =
   }, [result, expected, onSuccess]);
 
   // Функция для исправления гармоник (более точная)
-  const correctHarmonics = (freq) => {
+  const correctHarmonics = useCallback((freq) => {
     if (!freq || freq < 80) return freq;
     
     // Только для очень специфических случаев гармоник
@@ -79,7 +79,7 @@ const PitchTrainerPitchy = ({ expected, onSuccess, onCancel, hidden = false }) =
     }
     
     return freq;
-  };
+  }, []);
 
   // Функция конвертации частоты в ноту
   const freqToNote = (freq) => {
@@ -260,7 +260,7 @@ const PitchTrainerPitchy = ({ expected, onSuccess, onCancel, hidden = false }) =
       setError(`Ошибка: ${err.message}. Убедитесь, что микрофон подключен и разрешен доступ.`);
       setRunning(false);
     }
-  }, [running, mode]);
+  }, [correctHarmonics]);
 
   const stopTuner = useCallback(() => {
     setRunning(false);

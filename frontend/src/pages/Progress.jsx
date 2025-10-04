@@ -131,7 +131,7 @@ export default function Progress() {
             </div>
           ) : (
             <div className="lessons-progress-list">
-              {progress.map((lesson, index) => (
+              {progress.map((lesson) => (
                 <div key={lesson.lesson_id} className="lesson-progress-item">
                   <div className="lesson-progress-header">
                     <h3 className="lesson-title">{lesson.lesson_title}</h3>

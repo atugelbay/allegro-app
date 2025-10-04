@@ -1,15 +1,15 @@
-import { useAuth } from "../auth.jsx";
+// import { useAuth } from "../hooks/useAuth.js";
 import "../home-styles.css";
 
 export default function Home() {
-  const { clearAuth } = useAuth();
+  // const { clearAuth } = useAuth();
 
   return (
     <div className="home-page">
       <div className="hero-section">
         <div className="hero-content">
           <div className="hero-icon">🎵</div>
-          <h1 className="hero-title">Allegro</h1>
+          <h1 className="hero-title">Sonara Space</h1>
           <p className="hero-subtitle">
             Учись играть на гитаре и пианино — практикуйся по 10–15 минут в день.
           </p>
@@ -26,7 +26,7 @@ export default function Home() {
       </div>
 
       <div className="features-section">
-        <h2 className="section-title">Почему выбирают Allegro?</h2>
+        <h2 className="section-title">Почему выбирают Sonara Space?</h2>
         <div className="features-grid">
           <div className="feature-card">
             <div className="feature-icon">🎯</div>

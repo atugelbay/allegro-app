@@ -1,4 +1,4 @@
-module allegro/backend
+module sonara-space/backend
 
 go 1.24.4
 

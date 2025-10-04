@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { useAuth } from "../auth";
+import { useAuth } from "../hooks/useAuth";
 
 export default function Nav() {
   const { user, logout } = useAuth();
@@ -13,7 +13,7 @@ export default function Nav() {
         {/* Logo/Brand */}
         <Link to="/" className="nav-brand">
           <div className="brand-icon">🎵</div>
-          <span className="brand-text">Allegro</span>
+          <span className="brand-text">Sonara Space</span>
         </Link>
 
         {/* Navigation Links */}

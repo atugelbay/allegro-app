@@ -1,10 +1,42 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getLesson, updateProgress } from "../api";
 import ChordDetector from "./ChordDetector";
 import PitchTrainerPitchy from "./PitchTrainerPitchy";
 import ProgressCircle from "../components/ProgressCircle";
+import PianoVisualizer from "../components/PianoVisualizer";
+import GuitarVisualizer from "../components/GuitarVisualizer";
+import audioPlayer from "../utils/audioPlayer";
+import SongDisplay from "../components/SongDisplay";
 import "../lessons-styles.css";
+
+// Функции для работы с песнями
+const getSongTitle = (exerciseTitle) => {
+  if (exerciseTitle.includes('Happy Birthday')) return 'Happy Birthday';
+  if (exerciseTitle.includes('До-ре-ми')) return 'До-ре-ми';
+  if (exerciseTitle.includes('Twinkle Twinkle')) return 'Twinkle Twinkle Little Star';
+  if (exerciseTitle.includes('Гамма C мажор')) return 'Гамма C мажор';
+  return 'Неизвестная песня';
+};
+
+const getSongSequence = (exerciseTitle, expectedValue) => {
+  // Последовательности для известных песен
+  if (exerciseTitle.includes('Happy Birthday')) {
+    return ['Am', 'C', 'G', 'F', 'Am', 'C', 'G', 'F'];
+  }
+  if (exerciseTitle.includes('До-ре-ми')) {
+    return ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
+  }
+  if (exerciseTitle.includes('Twinkle Twinkle')) {
+    return ['C4', 'C4', 'G4', 'G4', 'A4', 'A4', 'G4'];
+  }
+  if (exerciseTitle.includes('Гамма C мажор')) {
+    return ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
+  }
+  
+  // Если это не известная песня, возвращаем только ожидаемое значение
+  return [expectedValue];
+};
 
 // Компонент для отображения схемы аккорда
 const ChordDiagram = ({ chord }) => {
@@ -116,7 +148,7 @@ const PianoNote = ({ note }) => {
   // Безопасное извлечение ноты и октавы
   const noteWithoutOctave = note.toString().replace(/\d+/, '');
   const position = notePositions[noteWithoutOctave] || 0;
-  const octave = parseInt(note.toString().replace(/[A-G#b]/, '')) || 4;
+  // const octave = parseInt(note.toString().replace(/[A-G#b]/, '')) || 4;
 
   return (
     <div className="piano-note">
@@ -156,20 +188,154 @@ export default function LessonDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lesson, setLesson] = useState(null);
+  const [isLoadingLesson, setIsLoadingLesson] = useState(false);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
+  const loadedLessonIdRef = useRef(null);
   const [completedExercises, setCompletedExercises] = useState(new Set());
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [isExerciseActive, setIsExerciseActive] = useState(false);
   const [isCorrectAnswer, setIsCorrectAnswer] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [_isProcessing, setIsProcessing] = useState(false);
   const processingRef = useRef(false);
+  const previousExerciseIndexRef = useRef(null);
 
   // Определяем currentExercise сразу после загрузки урока
   const currentExercise = lesson?.exercises?.[currentExerciseIndex];
+  
+
+  // Функция для рендеринга визуализатора
+  const renderVisualizer = () => {
+    if (!currentExercise || !(currentExercise.Expected || currentExercise.expected)) {
+      return null;
+    }
+
+    const exerciseType = currentExercise?.Type || currentExercise?.type;
+    const instrument = lesson.Instrument || lesson.instrument || lesson.Type || lesson.type;
+    const expectedValue = currentExercise.Expected || currentExercise.expected;
+    
+    // Проверяем, является ли это упражнением с песней
+    const isSongExercise = currentExercise.Title?.includes('Песня') || 
+                         currentExercise.Title?.includes('Мелодия') ||
+                         currentExercise.Title?.includes('Гамма');
+    
+    // Возвращаем соответствующий компонент
+    if (isSongExercise) {
+      const songSequence = getSongSequence(currentExercise.Title, expectedValue);
+      return (
+        <SongDisplay 
+          key={`song-${lesson.ID}-${currentExercise.ID}`}
+          songTitle={getSongTitle(currentExercise.Title)}
+          chordSequence={songSequence}
+          autoPlay={true}
+          instrument={instrument}
+          onChordPlay={() => {}}
+        />
+      );
+    } else if (exerciseType === "chord") {
+      if (instrument === "piano") {
+        return (
+          <PianoVisualizer 
+            key={`piano-chord-${lesson.ID}-${currentExercise.ID}`}
+            chordName={expectedValue}
+            autoPlay={true}
+            autoPlayDelay={2000}
+            size="medium"
+            showPlayButton={false}
+            onPlay={() => {}}
+          />
+        );
+      } else {
+        return (
+          <GuitarVisualizer 
+            key={`guitar-chord-${lesson.ID}-${currentExercise.ID}`}
+            chordName={expectedValue}
+            autoPlay={true}
+            autoPlayDelay={2000}
+            size="medium"
+            onPlay={() => {}}
+          />
+        );
+      }
+    } else if (exerciseType === "note") {
+      return (
+        <PianoVisualizer 
+          key={`piano-note-${lesson.ID}-${currentExercise.ID}`}
+          noteName={expectedValue}
+          autoPlay={true}
+          autoPlayDelay={2000}
+          size="medium"
+            onPlay={() => {}}
+        />
+      );
+    } else if (instrument === "guitar") {
+      return (
+        <GuitarVisualizer 
+          key={`guitar-fallback-${lesson.ID}-${currentExercise.ID}`}
+          chordName={expectedValue}
+          autoPlay={true}
+          autoPlayDelay={2000}
+          size="medium"
+          onPlay={() => {}}
+        />
+      );
+    } else if (instrument === "piano") {
+      return (
+        <PianoVisualizer 
+          key={`piano-fallback-${lesson.ID}-${currentExercise.ID}`}
+          noteName={expectedValue}
+          autoPlay={true}
+          autoPlayDelay={2000}
+          size="medium"
+            onPlay={() => {}}
+        />
+      );
+    } else {
+      // Fallback на старые компоненты
+      return (currentExercise.Type || currentExercise.type) === "chord" ? (
+        <ChordDiagram chord={expectedValue} />
+      ) : (
+        <PianoNote note={expectedValue} />
+      );
+    }
+  };
+
+  const loadLesson = useCallback(async () => {
+    const lessonId = parseInt(id);
+    
+    // Синхронная защита от повторных вызовов loadLesson
+    if (loadedLessonIdRef.current === lessonId) {
+      return;
+    }
+    
+    // Синхронная защита - устанавливаем флаг сразу
+    if (isLoadingLesson) {
+      return;
+    }
+    
+    // Устанавливаем флаг загрузки СРАЗУ, чтобы заблокировать повторные вызовы
+    setIsLoadingLesson(true);
+    loadedLessonIdRef.current = lessonId;
+    
+    try {
+      setLoading(true);
+      const lessonData = await getLesson(id);
+      setLesson(lessonData);
+    } catch (err) {
+      console.error("Error loading lesson:", err);
+      setError(err.message);
+    } finally {
+      setIsLoadingLesson(false);
+      setLoading(false);
+    }
+  }, [id, isLoadingLesson]);
 
   useEffect(() => {
-    loadLesson();
-  }, [id]);
+    const lessonId = parseInt(id);
+    // Загружаем урок только если он еще не загружен или ID изменился, и не загружается уже
+    if (loadedLessonIdRef.current !== lessonId && !isLoadingLesson) {
+      loadLesson();
+    }
+  }, [id, isLoadingLesson, loadLesson]); // Добавляем isLoadingLesson в зависимости
 
   // Принудительно запускаем тюнер при активации упражнения
   useEffect(() => {
@@ -184,34 +350,22 @@ export default function LessonDetail() {
     }
   }, [isExerciseActive, lesson, currentExerciseIndex]);
 
-  const loadLesson = async () => {
-    try {
-      setLoading(true);
-      const lessonData = await getLesson(id);
-      console.log("Loaded lesson data:", lessonData);
-      console.log("Lesson keys:", Object.keys(lessonData));
-      console.log("Lesson instrument (lowercase):", lessonData.instrument);
-      console.log("Lesson Instrument (uppercase):", lessonData.Instrument);
-      console.log("Lesson type (lowercase):", lessonData.type);
-      console.log("Lesson Type (uppercase):", lessonData.Type);
-      console.log("First exercise:", lessonData.exercises?.[0]);
-      setLesson(lessonData);
-    } catch (err) {
-      console.error("Error loading lesson:", err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
+  // Останавливаем звук при изменении упражнения (только при реальном переходе)
+  useEffect(() => {
+    // Проверяем, что это не первоначальная загрузка
+    if (previousExerciseIndexRef.current !== null && previousExerciseIndexRef.current !== currentExerciseIndex) {
+      audioPlayer.stopAll();
     }
-  };
+    // Обновляем предыдущий индекс
+    previousExerciseIndexRef.current = currentExerciseIndex;
+  }, [currentExerciseIndex]);
 
   const handleExerciseComplete = async (exerciseId) => {
     if (!processingRef.current) {
-      console.log("handleExerciseComplete blocked - not processing");
       return;
     }
     
     try {
-      console.log("Saving progress for exercise ID:", exerciseId);
       await updateProgress(exerciseId, "done");
       setCompletedExercises(prev => new Set([...prev, exerciseId]));
       
@@ -262,13 +416,9 @@ export default function LessonDetail() {
     // Автоматически завершаем упражнение через небольшую задержку
     setTimeout(() => {
       const exercise = lesson?.exercises?.[currentExerciseIndex];
-      console.log("Current exercise for progress:", exercise);
       if (exercise?.ID || exercise?.id) {
         const exerciseId = exercise.ID || exercise.id;
-        console.log("Calling handleExerciseComplete with ID:", exerciseId);
         handleExerciseComplete(exerciseId);
-      } else {
-        console.error("No exercise ID found:", exercise);
       }
     }, 1500);
   };
@@ -468,15 +618,9 @@ export default function LessonDetail() {
                 </div>
 
                 {/* Визуальный учебный материал */}
-                {currentExercise && (currentExercise.Expected || currentExercise.expected) && (
-                  <div className="visual-material">
-                    {(currentExercise.Type || currentExercise.type) === "chord" ? (
-                      <ChordDiagram chord={currentExercise.Expected || currentExercise.expected} />
-                    ) : (
-                      <PianoNote note={currentExercise.Expected || currentExercise.expected} />
-                    )}
-                  </div>
-                )}
+                <div className="visual-material">
+                  {renderVisualizer()}
+                </div>
 
                 <div className="exercise-actions">
                   {!isExerciseActive ? (

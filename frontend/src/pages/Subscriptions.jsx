@@ -57,7 +57,7 @@ export default function Subscriptions() {
       const response = await api("/subscriptions/me");
       setSub(response);
       setCurrentSub(response.subscription);
-    } catch (e) {
+    } catch {
       setSub({ hasActiveSubscription: false, subscription: null });
       setCurrentSub(null);
     }
@@ -65,7 +65,7 @@ export default function Subscriptions() {
 
   useEffect(() => { load(); }, []);
 
-  const choose = async (plan, amount) => {
+  const choose = async (plan) => {
     setMsg("");
     setLoading(true);
     

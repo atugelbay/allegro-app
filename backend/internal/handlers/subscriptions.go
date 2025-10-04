@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"allegro/backend/internal/auth"
-	"allegro/backend/internal/db"
+	"sonara-space/backend/internal/auth"
+	"sonara-space/backend/internal/db"
 )
 
 type SubscriptionRequest struct {

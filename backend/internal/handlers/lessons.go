@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"allegro/backend/internal/auth"
-	"allegro/backend/internal/db"
-	"allegro/backend/internal/models"
+	"sonara-space/backend/internal/auth"
+	"sonara-space/backend/internal/db"
+	"sonara-space/backend/internal/models"
 )
 
 // LessonWithExercises представляет урок с упражнениями

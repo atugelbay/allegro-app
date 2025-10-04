@@ -9,10 +9,10 @@ import (
 	"os"
 	"strings"
 
-	"allegro/backend/config"
-	"allegro/backend/internal/auth"
-	"allegro/backend/internal/db"
-	"allegro/backend/internal/handlers"
+	"sonara-space/backend/config"
+	"sonara-space/backend/internal/auth"
+	"sonara-space/backend/internal/db"
+	"sonara-space/backend/internal/handlers"
 
 	"github.com/go-chi/chi/v5"
 )

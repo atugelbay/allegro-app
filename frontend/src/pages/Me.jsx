@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import { useAuth } from "../auth.jsx";
+import { useAuth } from "../hooks/useAuth";
 import "../profile-styles.css";
 
 export default function Me() {

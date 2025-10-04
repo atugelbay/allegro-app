@@ -1,6 +1,5 @@
-import { createContext, useContext, useState, useEffect } from "react";
-
-const AuthCtx = createContext(null);
+import { useState, useEffect } from "react";
+import { AuthCtx } from "./contexts/AuthContext";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -76,4 +75,4 @@ export function AuthProvider({ children }) {
   );
 }
 
-export const useAuth = () => useContext(AuthCtx);
+// Экспорт хука перенесен в hooks/useAuth.js

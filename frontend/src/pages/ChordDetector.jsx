@@ -196,14 +196,14 @@ export default function ChordDetector({ expected, onSuccess, onCancel, hidden = 
   const [error, setError] = useState(null);
   const [audioLevel, setAudioLevel] = useState(0);
   const [detectedNotes, setDetectedNotes] = useState([]);
-  const [chordConfidence, setChordConfidence] = useState(0);
+  const [_chordConfidence, setChordConfidence] = useState(0);
   const [isCorrect, setIsCorrect] = useState(false);
   const [lockedChord, setLockedChord] = useState(null);
   const [lockTimestamp, setLockTimestamp] = useState(0);
   
   // Буфер для стабилизации результатов
   const chordBufferRef = useRef([]);
-  const lastChordTimeRef = useRef(0);
+  // const lastChordTimeRef = useRef(0);
   const lockReleaseTimerRef = useRef(null);
 
   const audioCtxRef = useRef(null);
@@ -452,7 +452,7 @@ export default function ChordDetector({ expected, onSuccess, onCancel, hidden = 
       setError(`Ошибка: ${err.message}. Убедитесь, что микрофон подключен и разрешен доступ.`);
       setRunning(false);
     }
-  }, [running]);
+  }, [lockTimestamp, lockedChord]);
 
   const stopDetection = useCallback(() => {
     console.log('🛑 Останавливаем ChordDetector');
