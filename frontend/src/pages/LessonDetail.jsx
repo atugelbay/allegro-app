@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getLesson, updateProgress } from "../api";
-import PitchTrainer from "./PitchTrainer";
+import ChordDetector from "./ChordDetector";
+import PitchTrainerPitchy from "./PitchTrainerPitchy";
 import ProgressCircle from "../components/ProgressCircle";
 import "../lessons-styles.css";
 
@@ -188,6 +189,11 @@ export default function LessonDetail() {
       setLoading(true);
       const lessonData = await getLesson(id);
       console.log("Loaded lesson data:", lessonData);
+      console.log("Lesson keys:", Object.keys(lessonData));
+      console.log("Lesson instrument (lowercase):", lessonData.instrument);
+      console.log("Lesson Instrument (uppercase):", lessonData.Instrument);
+      console.log("Lesson type (lowercase):", lessonData.type);
+      console.log("Lesson Type (uppercase):", lessonData.Type);
       console.log("First exercise:", lessonData.exercises?.[0]);
       setLesson(lessonData);
     } catch (err) {
@@ -499,10 +505,24 @@ export default function LessonDetail() {
                            Сыграйте <strong style={{color: '#FF5722', fontSize: '1.2em'}}>{currentExercise?.Expected || currentExercise?.expected}</strong>
                          </p>
                          <p className="instruction-hint">
-                           {(currentExercise?.Type || currentExercise?.type) === "chord" 
-                             ? "🎸 Сыграйте аккорд на гитаре" 
-                             : "🎹 Сыграйте ноту на пианино"
-                           }
+                           {(() => {
+                             const exerciseType = currentExercise?.Type || currentExercise?.type;
+                             const instrument = lesson.Instrument || lesson.instrument || lesson.Type || lesson.type; // Проверяем все возможные варианты
+                             
+                             if (instrument === 'guitar') {
+                               return "🎸 Сыграйте аккорд на гитаре";
+                             } else if (instrument === 'piano' && exerciseType === 'chord') {
+                               return "🎹 Сыграйте аккорд на пианино";
+                             } else if (instrument === 'piano' && exerciseType === 'note') {
+                               return "🎹 Сыграйте ноту на пианино";
+                             } else if (exerciseType === 'chord') {
+                               return "🎵 Сыграйте аккорд";
+                             } else if (exerciseType === 'note') {
+                               return "🎵 Сыграйте ноту";
+                             } else {
+                               return "🎵 Сыграйте на инструменте";
+                             }
+                           })()}
                          </p>
                        </div>
                        
@@ -513,14 +533,66 @@ export default function LessonDetail() {
                          Остановить
                        </button>
                        
-                       {/* Фоновый тюнер */}
-                       <PitchTrainer
-                         expected={currentExercise?.Expected || currentExercise?.expected}
-                         type={currentExercise?.Type || currentExercise?.type}
-                         onSuccess={handleCorrectAnswer}
-                         onCancel={stopExercise}
-                         hidden={true}
-                       />
+                       {/* Фоновый детектор - выбираем в зависимости от инструмента и типа упражнения */}
+                       {(() => {
+                         const exerciseType = currentExercise?.Type || currentExercise?.type;
+                         const instrument = lesson.Instrument || lesson.instrument || lesson.Type || lesson.type; // Проверяем все возможные варианты
+                         
+                         // Логика выбора детектора:
+                         // 1. Гитара - всегда ChordDetector (аккорды)
+                         // 2. Пианино + аккорды - ChordDetector  
+                         // 3. Пианино + ноты - PitchTrainerPitchy
+                         
+                         console.log(`🎯 Выбор детектора: инструмент=${instrument}, тип=${exerciseType}, lesson.Instrument=${lesson.Instrument}, lesson.Type=${lesson.Type}`);
+                         
+                         // Улучшенная логика выбора детектора
+                         if (exerciseType === 'chord') {
+                           console.log('🎸 Используем ChordDetector для аккордов');
+                           return (
+                             <ChordDetector
+                               expected={currentExercise?.Expected || currentExercise?.expected}
+                               type={exerciseType}
+                               onSuccess={handleCorrectAnswer}
+                               onCancel={stopExercise}
+                               hidden={true}
+                             />
+                           );
+                         } else if (exerciseType === 'note') {
+                           console.log('🎹 Используем PitchTrainerPitchy для нот');
+                           return (
+                             <PitchTrainerPitchy
+                               expected={currentExercise?.Expected || currentExercise?.expected}
+                               type={exerciseType}
+                               onSuccess={handleCorrectAnswer}
+                               onCancel={stopExercise}
+                               hidden={true}
+                             />
+                           );
+                         } else if (instrument === 'guitar') {
+                           console.log('🎸 Используем ChordDetector для гитары (по умолчанию)');
+                           return (
+                             <ChordDetector
+                               expected={currentExercise?.Expected || currentExercise?.expected}
+                               type={exerciseType}
+                               onSuccess={handleCorrectAnswer}
+                               onCancel={stopExercise}
+                               hidden={true}
+                             />
+                           );
+                         } else {
+                           console.log('🔄 Fallback: используем ChordDetector по умолчанию');
+                           // Fallback - по умолчанию ChordDetector
+                           return (
+                             <ChordDetector
+                               expected={currentExercise?.Expected || currentExercise?.expected}
+                               type={exerciseType}
+                               onSuccess={handleCorrectAnswer}
+                               onCancel={stopExercise}
+                               hidden={true}
+                             />
+                           );
+                         }
+                       })()}
                      </div>
                    )}
                 </div>

@@ -10,7 +10,7 @@ import Subscriptions from "./pages/Subscriptions";
 import Lessons from "./pages/Lessons";
 import LessonDetail from "./pages/LessonDetail";
 import Progress from "./pages/Progress";
-import PitchTrainer from "./pages/PitchTrainer";
+import TunerPage from "./pages/TunerPage";
 import "./App.css";
 
 function AppContent() {
@@ -37,7 +37,7 @@ function AppContent() {
           <Route path="/lessons" element={<ProtectedRoute><Lessons /></ProtectedRoute>} />
           <Route path="/lessons/:id" element={<ProtectedRoute><LessonDetail /></ProtectedRoute>} />
           <Route path="/progress" element={<ProtectedRoute><Progress /></ProtectedRoute>} />
-          <Route path="/trainer" element={<ProtectedRoute><PitchTrainer /></ProtectedRoute>} />
+          <Route path="/trainer" element={<ProtectedRoute><TunerPage /></ProtectedRoute>} />
         </Routes>
       </main>
     </div>
