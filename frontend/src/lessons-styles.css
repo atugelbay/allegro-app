@@ -253,6 +253,355 @@
   margin-top: var(--space-md);
 }
 
+/* Success Message */
+.success-message {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.success-card {
+  background: linear-gradient(135deg, #4CAF50, #8BC34A);
+  color: white;
+  padding: var(--space-2xl);
+  border-radius: var(--radius-xl);
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  overflow: hidden;
+  max-width: 400px;
+  width: 100%;
+}
+
+.success-icon {
+  font-size: 4rem;
+  margin-bottom: var(--space-md);
+  animation: bounce 1s ease-in-out infinite;
+}
+
+.success-card h2 {
+  font-size: 2rem;
+  margin-bottom: var(--space-md);
+  font-weight: bold;
+}
+
+.success-card p {
+  font-size: 1.2rem;
+  margin-bottom: var(--space-lg);
+  opacity: 0.9;
+}
+
+.success-animation {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.confetti {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #FFD700;
+  animation: confetti-fall 2s ease-in-out infinite;
+}
+
+.confetti:nth-child(1) {
+  left: 20%;
+  animation-delay: 0s;
+}
+
+.confetti:nth-child(2) {
+  left: 50%;
+  animation-delay: 0.5s;
+}
+
+.confetti:nth-child(3) {
+  left: 80%;
+  animation-delay: 1s;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-20px);
+  }
+  60% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-100px) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(400px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* Visual Material Styles */
+.visual-material {
+  margin: var(--space-lg) 0;
+  padding: var(--space-lg);
+  background: #f8f9fa;
+  border-radius: var(--radius-lg);
+  border: 2px solid #e9ecef;
+}
+
+/* Chord Diagram Styles */
+.chord-diagram {
+  text-align: center;
+}
+
+.chord-diagram h4 {
+  color: var(--neutral-700);
+  margin-bottom: var(--space-md);
+  font-size: 1.3rem;
+}
+
+.guitar-fretboard {
+  display: inline-block;
+  position: relative;
+  margin: var(--space-md) 0;
+  padding: var(--space-md);
+  background: white;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.strings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.string {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  position: relative;
+}
+
+.string::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #333;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.fret {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border-right: 2px solid #ddd;
+}
+
+.fret.active {
+  background: #e3f2fd;
+  border-radius: 50%;
+}
+
+.finger-dot {
+  width: 24px;
+  height: 24px;
+  background: #2196F3;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.string-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-sm);
+  padding: 0 var(--space-xs);
+}
+
+.string-label {
+  width: 40px;
+  text-align: center;
+  font-weight: bold;
+  color: var(--neutral-600);
+  font-size: 12px;
+}
+
+.chord-instruction {
+  color: var(--neutral-600);
+  font-style: italic;
+  margin-top: var(--space-md);
+}
+
+/* Piano Note Styles */
+.piano-note {
+  text-align: center;
+}
+
+.piano-note h4 {
+  color: var(--neutral-700);
+  margin-bottom: var(--space-md);
+  font-size: 1.3rem;
+}
+
+.piano-keyboard {
+  display: inline-block;
+  position: relative;
+  margin: var(--space-md) 0;
+  padding: var(--space-md);
+  background: white;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.white-keys {
+  display: flex;
+  gap: 2px;
+}
+
+.white-key {
+  width: 40px;
+  height: 120px;
+  background: white;
+  border: 2px solid #333;
+  border-radius: 0 0 8px 8px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 8px;
+}
+
+.white-key.highlighted {
+  background: #fff3e0;
+  border-color: #FF9800;
+  box-shadow: 0 0 10px rgba(255, 152, 0, 0.3);
+}
+
+.black-keys {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.black-key {
+  width: 24px;
+  height: 80px;
+  background: #333;
+  border-radius: 0 0 4px 4px;
+  position: relative;
+  margin-left: 8px;
+}
+
+.black-key.highlighted {
+  background: #FF9800;
+  box-shadow: 0 0 10px rgba(255, 152, 0, 0.5);
+}
+
+.note-indicator {
+  background: #FF9800;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.note-instruction {
+  color: var(--neutral-600);
+  font-style: italic;
+  margin-top: var(--space-md);
+}
+
+/* Exercise Active Styles */
+.exercise-active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: var(--space-xl);
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  border-radius: var(--radius-lg);
+  border: 2px solid #dee2e6;
+}
+
+.progress-circle-wrapper {
+  margin-bottom: var(--space-md);
+}
+
+.exercise-instruction-active {
+  text-align: center;
+  max-width: 400px;
+}
+
+.exercise-instruction-active h3 {
+  color: var(--neutral-700);
+  margin-bottom: var(--space-md);
+  font-size: 1.3rem;
+}
+
+.task-text {
+  font-size: 1.2rem;
+  margin-bottom: var(--space-md);
+  color: var(--neutral-600);
+}
+
+.exercise-instruction-active .instruction-hint {
+  color: var(--neutral-500);
+  font-style: italic;
+  margin: 0;
+}
+
+/* Progress Circle Animation */
+@keyframes fillCircle {
+  0% {
+    stroke-dashoffset: 100;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
 /* Mobile adjustments */
 @media (max-width: 768px) {
   .lessons-page {

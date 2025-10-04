@@ -6,6 +6,9 @@ export async function api(path, { method = "GET", body, auth = true } = {}) {
     const token = localStorage.getItem("access_token");
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
+  
+  console.log(`API Request: ${method} ${path}`, { headers, body });
+  
   const res = await fetch(API_URL + path, {
     method,
     headers,

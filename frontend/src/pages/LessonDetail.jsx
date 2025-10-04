@@ -1,8 +1,153 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { getLesson, updateProgress } from "../api";
 import PitchTrainer from "./PitchTrainer";
+import ProgressCircle from "../components/ProgressCircle";
 import "../lessons-styles.css";
+
+// Компонент для отображения схемы аккорда
+const ChordDiagram = ({ chord }) => {
+  // Проверяем, что chord существует
+  if (!chord) {
+    return (
+      <div className="chord-diagram">
+        <h4>Аккорд не указан</h4>
+        <p>Информация об аккорде недоступна</p>
+      </div>
+    );
+  }
+
+  const chordDiagrams = {
+    'Am': {
+      name: 'Am',
+      fingering: [0, 0, 2, 2, 1, 0],
+      frets: [0, 0, 2, 2, 1, 0]
+    },
+    'C': {
+      name: 'C',
+      fingering: [0, 1, 0, 2, 1, 0],
+      frets: [0, 1, 0, 2, 1, 0]
+    },
+    'Dm': {
+      name: 'Dm',
+      fingering: [1, 3, 2, 0, 0, 0],
+      frets: [1, 3, 2, 0, 0, 0]
+    },
+    'E': {
+      name: 'E',
+      fingering: [0, 2, 2, 1, 0, 0],
+      frets: [0, 2, 2, 1, 0, 0]
+    },
+    'F': {
+      name: 'F',
+      fingering: [1, 3, 3, 2, 1, 1],
+      frets: [1, 3, 3, 2, 1, 1]
+    },
+    'G': {
+      name: 'G',
+      fingering: [3, 2, 0, 0, 3, 3],
+      frets: [3, 2, 0, 0, 3, 3]
+    }
+  };
+
+  const diagram = chordDiagrams[chord.toString()];
+  if (!diagram) {
+    return (
+      <div className="chord-diagram">
+        <h4>Аккорд {chord}</h4>
+        <p>Схема аккорда {chord} пока недоступна</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="chord-diagram">
+      <h4>Схема аккорда {chord}</h4>
+      <div className="guitar-fretboard">
+        {/* Струны */}
+        <div className="strings">
+          {[0, 1, 2, 3, 4, 5].map(string => (
+            <div key={string} className="string">
+              {/* Лады */}
+              {[0, 1, 2, 3, 4].map(fret => (
+                <div key={fret} className={`fret ${diagram.frets[string] === fret ? 'active' : ''}`}>
+                  {diagram.frets[string] === fret && (
+                    <div className="finger-dot">
+                      {diagram.fingering[string] || '•'}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        {/* Номера струн */}
+        <div className="string-labels">
+          {['E', 'A', 'D', 'G', 'B', 'E'].map((note, i) => (
+            <div key={i} className="string-label">{note}</div>
+          ))}
+        </div>
+      </div>
+      <p className="chord-instruction">
+        Зажмите струны как показано на схеме и сыграйте аккорд
+      </p>
+    </div>
+  );
+};
+
+// Компонент для отображения ноты на пианино
+const PianoNote = ({ note }) => {
+  // Проверяем, что note существует
+  if (!note) {
+    return (
+      <div className="piano-note">
+        <h4>Нота не указана</h4>
+        <p>Информация о ноте недоступна</p>
+      </div>
+    );
+  }
+
+  const notePositions = {
+    'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3, 'E': 4, 'F': 5,
+    'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8, 'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
+  };
+
+  // Безопасное извлечение ноты и октавы
+  const noteWithoutOctave = note.toString().replace(/\d+/, '');
+  const position = notePositions[noteWithoutOctave] || 0;
+  const octave = parseInt(note.toString().replace(/[A-G#b]/, '')) || 4;
+
+  return (
+    <div className="piano-note">
+      <h4>Нота {note}</h4>
+      <div className="piano-keyboard">
+        <div className="white-keys">
+          {[0, 2, 4, 5, 7, 9, 11].map(key => (
+            <div 
+              key={key} 
+              className={`white-key ${key === position ? 'highlighted' : ''}`}
+            >
+              {key === position && <div className="note-indicator">{note}</div>}
+            </div>
+          ))}
+        </div>
+        <div className="black-keys">
+          {[1, 3, 6, 8, 10].map(key => (
+            <div 
+              key={key} 
+              className={`black-key ${key === position ? 'highlighted' : ''}`}
+            >
+              {key === position && <div className="note-indicator">{note}</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="note-instruction">
+        Нажмите клавишу {note} на пианино
+      </p>
+    </div>
+  );
+};
 
 export default function LessonDetail() {
   const { id } = useParams();
@@ -12,16 +157,38 @@ export default function LessonDetail() {
   const [lesson, setLesson] = useState(null);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [completedExercises, setCompletedExercises] = useState(new Set());
-  const [showPitchTrainer, setShowPitchTrainer] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [isExerciseActive, setIsExerciseActive] = useState(false);
+  const [isCorrectAnswer, setIsCorrectAnswer] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const processingRef = useRef(false);
+
+  // Определяем currentExercise сразу после загрузки урока
+  const currentExercise = lesson?.exercises?.[currentExerciseIndex];
 
   useEffect(() => {
     loadLesson();
   }, [id]);
 
+  // Принудительно запускаем тюнер при активации упражнения
+  useEffect(() => {
+    if (isExerciseActive && lesson?.exercises?.[currentExerciseIndex]) {
+      const exercise = lesson.exercises[currentExerciseIndex];
+      const expected = exercise.Expected || exercise.expected;
+      console.log("Exercise activated, starting tuner for:", expected);
+      // Небольшая задержка для инициализации
+      setTimeout(() => {
+        console.log("Tuner should be running now");
+      }, 500);
+    }
+  }, [isExerciseActive, lesson, currentExerciseIndex]);
+
   const loadLesson = async () => {
     try {
       setLoading(true);
       const lessonData = await getLesson(id);
+      console.log("Loaded lesson data:", lessonData);
+      console.log("First exercise:", lessonData.exercises?.[0]);
       setLesson(lessonData);
     } catch (err) {
       console.error("Error loading lesson:", err);
@@ -32,27 +199,79 @@ export default function LessonDetail() {
   };
 
   const handleExerciseComplete = async (exerciseId) => {
+    if (!processingRef.current) {
+      console.log("handleExerciseComplete blocked - not processing");
+      return;
+    }
+    
     try {
+      console.log("Saving progress for exercise ID:", exerciseId);
       await updateProgress(exerciseId, "done");
       setCompletedExercises(prev => new Set([...prev, exerciseId]));
       
-      // Переходим к следующему упражнению
-      if (currentExerciseIndex < lesson.exercises.length - 1) {
-        setCurrentExerciseIndex(prev => prev + 1);
-      } else {
-        // Урок завершен
-        alert("🎉 Поздравляем! Урок завершен!");
-      }
+      // Показываем сообщение об успехе
+      setShowSuccessMessage(true);
+      setIsExerciseActive(false);
       
-      setShowPitchTrainer(false);
+      // Через 2 секунды переходим к следующему упражнению
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        setIsCorrectAnswer(false);
+        processingRef.current = false;
+        
+        if (currentExerciseIndex < lesson.exercises.length - 1) {
+          setCurrentExerciseIndex(prev => prev + 1);
+        } else {
+          // Урок завершен
+          alert("🎉 Поздравляем! Урок завершен!");
+        }
+      }, 2000);
+      
     } catch (err) {
       console.error("Error updating progress:", err);
       alert("Ошибка при сохранении прогресса");
+      processingRef.current = false;
     }
   };
 
   const startExercise = () => {
-    setShowPitchTrainer(true);
+    setIsExerciseActive(true);
+    setIsCorrectAnswer(false);
+    const exercise = lesson?.exercises?.[currentExerciseIndex];
+    console.log("Starting exercise:", exercise);
+    console.log("Exercise keys:", exercise ? Object.keys(exercise) : "no exercise");
+    console.log("Exercise data - expected:", exercise?.Expected || exercise?.expected, "type:", exercise?.Type || exercise?.type);
+  };
+
+  const handleCorrectAnswer = () => {
+    if (isCorrectAnswer || processingRef.current) {
+      console.log("handleCorrectAnswer blocked - already processing or correct");
+      return; // Предотвращаем дублирование
+    }
+    console.log("handleCorrectAnswer called - setting states");
+    processingRef.current = true;
+    setIsCorrectAnswer(true);
+    setIsProcessing(true);
+    
+    // Автоматически завершаем упражнение через небольшую задержку
+    setTimeout(() => {
+      const exercise = lesson?.exercises?.[currentExerciseIndex];
+      console.log("Current exercise for progress:", exercise);
+      if (exercise?.ID || exercise?.id) {
+        const exerciseId = exercise.ID || exercise.id;
+        console.log("Calling handleExerciseComplete with ID:", exerciseId);
+        handleExerciseComplete(exerciseId);
+      } else {
+        console.error("No exercise ID found:", exercise);
+      }
+    }, 1500);
+  };
+
+  const stopExercise = () => {
+    setIsExerciseActive(false);
+    setIsCorrectAnswer(false);
+    setIsProcessing(false);
+    processingRef.current = false;
   };
 
   const getProgressPercentage = () => {
@@ -139,7 +358,6 @@ export default function LessonDetail() {
     );
   }
 
-  const currentExercise = lesson.exercises[currentExerciseIndex];
   const progressPercentage = getProgressPercentage();
 
   return (
@@ -185,60 +403,128 @@ export default function LessonDetail() {
 
         {/* Exercise Content */}
         <div className="exercise-content">
-          {!showPitchTrainer ? (
+          {showSuccessMessage ? (
+            <div className="success-message">
+              <div className="success-card">
+                <div className="success-icon">🎉</div>
+                <h2>Отлично!</h2>
+                <p>Вы правильно сыграли <strong>{currentExercise.Expected || currentExercise.expected}</strong>!</p>
+                <div className="success-animation">
+                  <div className="confetti"></div>
+                  <div className="confetti"></div>
+                  <div className="confetti"></div>
+                </div>
+              </div>
+            </div>
+          ) : !currentExercise ? (
+            <div className="exercise-intro">
+              <div className="exercise-card">
+                <div className="loading-spinner">
+                  <div className="spinner"></div>
+                  <p>Загрузка упражнения...</p>
+                </div>
+              </div>
+            </div>
+          ) : (
             <div className="exercise-intro">
               <div className="exercise-card">
                 <div className="exercise-header">
                   <span className="exercise-number">
                     Упражнение {currentExerciseIndex + 1} из {lesson.exercises.length}
                   </span>
-                  {completedExercises.has(currentExercise.id) && (
-                    <span className="completed-badge">✓ Выполнено</span>
-                  )}
+                   {(currentExercise?.ID || currentExercise?.id) && completedExercises.has(currentExercise.ID || currentExercise.id) && (
+                     <span className="completed-badge">✓ Выполнено</span>
+                   )}
                 </div>
                 
-                <h2 className="exercise-title">{currentExercise.title}</h2>
+                 <h2 className="exercise-title">{(currentExercise?.Title || currentExercise?.title) || 'Загрузка...'}</h2>
                 
                 <div className="exercise-instruction">
                   <div className="instruction-card">
-                    <div className="instruction-icon">
-                      {currentExercise.type === "chord" ? "🎸" : "🎹"}
-                    </div>
-                    <div className="instruction-text">
-                      <h3>Ваша задача:</h3>
-                      <p>Сыграйте <strong>{currentExercise.expected}</strong></p>
-                      <p className="instruction-hint">
-                        {currentExercise.type === "chord" 
-                          ? "Нажмите кнопку ниже и сыграйте аккорд на гитаре"
-                          : "Нажмите кнопку ниже и сыграйте ноту на пианино"
-                        }
-                      </p>
-                    </div>
+                     <div className="instruction-icon">
+                       {(currentExercise?.Type || currentExercise?.type) === "chord" ? "🎸" : "🎹"}
+                     </div>
+                     <div className="instruction-text">
+                       <h3>Ваша задача:</h3>
+                       <p>Сыграйте <strong>{(currentExercise?.Expected || currentExercise?.expected) || 'НЕ УКАЗАНО'}</strong></p>
+                       <p className="instruction-hint">
+                         {(currentExercise?.Type || currentExercise?.type) === "chord" 
+                           ? "Нажмите кнопку ниже и сыграйте аккорд на гитаре"
+                           : "Нажмите кнопку ниже и сыграйте ноту на пианино"
+                         }
+                       </p>
+                       {/* Отладочная информация */}
+                       <div style={{fontSize: '10px', color: '#999', marginTop: '10px'}}>
+                         DEBUG: type={currentExercise?.Type || currentExercise?.type}, expected={currentExercise?.Expected || currentExercise?.expected}
+                       </div>
+                     </div>
                   </div>
                 </div>
 
+                {/* Визуальный учебный материал */}
+                {currentExercise && (currentExercise.Expected || currentExercise.expected) && (
+                  <div className="visual-material">
+                    {(currentExercise.Type || currentExercise.type) === "chord" ? (
+                      <ChordDiagram chord={currentExercise.Expected || currentExercise.expected} />
+                    ) : (
+                      <PianoNote note={currentExercise.Expected || currentExercise.expected} />
+                    )}
+                  </div>
+                )}
+
                 <div className="exercise-actions">
-                  <button 
-                    className="btn btn-primary btn-large"
-                    onClick={startExercise}
-                    disabled={completedExercises.has(currentExercise.id)}
-                  >
-                    {completedExercises.has(currentExercise.id) 
-                      ? "Упражнение выполнено" 
-                      : "Начать упражнение"
-                    }
-                  </button>
+                  {!isExerciseActive ? (
+                     <button 
+                       className="btn btn-primary btn-large"
+                       onClick={startExercise}
+                       disabled={(currentExercise?.ID || currentExercise?.id) && completedExercises.has(currentExercise.ID || currentExercise.id)}
+                     >
+                       {(currentExercise?.ID || currentExercise?.id) && completedExercises.has(currentExercise.ID || currentExercise.id)
+                         ? "Упражнение выполнено" 
+                         : "Начать упражнение"
+                       }
+                     </button>
+                   ) : (
+                     <div className="exercise-active">
+                       <div className="progress-circle-wrapper">
+                         <ProgressCircle 
+                           isCorrect={isCorrectAnswer} 
+                           size={150}
+                         />
+                       </div>
+                       
+                       <div className="exercise-instruction-active">
+                         <h3>🎯 Ваша задача:</h3>
+                         <p className="task-text">
+                           Сыграйте <strong style={{color: '#FF5722', fontSize: '1.2em'}}>{currentExercise?.Expected || currentExercise?.expected}</strong>
+                         </p>
+                         <p className="instruction-hint">
+                           {(currentExercise?.Type || currentExercise?.type) === "chord" 
+                             ? "🎸 Сыграйте аккорд на гитаре" 
+                             : "🎹 Сыграйте ноту на пианино"
+                           }
+                         </p>
+                       </div>
+                       
+                       <button 
+                         className="btn btn-secondary"
+                         onClick={stopExercise}
+                       >
+                         Остановить
+                       </button>
+                       
+                       {/* Фоновый тюнер */}
+                       <PitchTrainer
+                         expected={currentExercise?.Expected || currentExercise?.expected}
+                         type={currentExercise?.Type || currentExercise?.type}
+                         onSuccess={handleCorrectAnswer}
+                         onCancel={stopExercise}
+                         hidden={true}
+                       />
+                     </div>
+                   )}
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="pitch-trainer-container">
-              <PitchTrainer
-                expected={currentExercise.expected}
-                type={currentExercise.type}
-                onSuccess={() => handleExerciseComplete(currentExercise.id)}
-                onCancel={() => setShowPitchTrainer(false)}
-              />
             </div>
           )}
         </div>
@@ -282,6 +568,7 @@ export default function LessonDetail() {
           </div>
         )}
       </div>
+      
     </div>
   );
 }

@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"allegro/backend/internal/auth"
 	"allegro/backend/internal/db"
@@ -125,14 +127,28 @@ func GetLessonHandler(w http.ResponseWriter, r *http.Request) {
 
 // UpdateProgressHandler обновляет прогресс пользователя по упражнению
 func UpdateProgressHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("=== UpdateProgressHandler STARTED ===")
+	log.Printf("Request method: %s, URL: %s", r.Method, r.URL.String())
+
 	userID := r.Context().Value(auth.UserIDKey).(int64)
 	ctx := r.Context()
 
+	log.Printf("UserID from context: %d", userID)
+
+	if userID == 0 {
+		log.Printf("Error: userID is 0, user not authenticated")
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	var req ProgressRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Error decoding JSON: %v", err)
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
+
+	log.Printf("UpdateProgressHandler: userID=%d, exerciseID=%d, status=%s", userID, req.ExerciseID, req.Status)
 
 	// Проверяем, что упражнение существует
 	var exercise models.Exercise
@@ -142,9 +158,11 @@ func UpdateProgressHandler(w http.ResponseWriter, r *http.Request) {
 		&exercise.ID, &exercise.LessonID, &exercise.Title,
 		&exercise.Expected, &exercise.Type, &exercise.OrderIndex, &exercise.CreatedAt)
 	if err != nil {
+		log.Printf("Exercise not found: %v", err)
 		http.Error(w, "Exercise not found", http.StatusNotFound)
 		return
 	}
+	log.Printf("Exercise found: ID=%d, Title=%s, Expected=%s, Type=%s", exercise.ID, exercise.Title, exercise.Expected, exercise.Type)
 
 	// Обновляем или создаем прогресс
 	var completed bool
@@ -154,28 +172,36 @@ func UpdateProgressHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Используем UPSERT для обновления или создания записи прогресса
 	upsertQuery := `
-		INSERT INTO progress (user_id, exercise_id, completed, attempts, best_score, completed_at, updated_at)
-		VALUES ($1, $2, $3, 1, $4, $5, NOW())
+		INSERT INTO progress (user_id, exercise_id, status, completed, attempts, best_score, completed_at, updated_at)
+		VALUES ($1, $2, $3, $4, 1, $5, $6, $7)
 		ON CONFLICT (user_id, exercise_id) 
 		DO UPDATE SET 
-			completed = $3,
+			status = $3,
+			completed = $4,
 			attempts = progress.attempts + 1,
-			best_score = GREATEST(progress.best_score, $4),
-			completed_at = CASE WHEN $3 = true THEN COALESCE(progress.completed_at, NOW()) ELSE progress.completed_at END,
-			updated_at = NOW()
+			best_score = GREATEST(progress.best_score, $5),
+			completed_at = CASE WHEN $4 = true THEN COALESCE(progress.completed_at, $6) ELSE progress.completed_at END,
+			updated_at = $7
 	`
 
-	var completedAt *string
+	var completedAt *time.Time
+	now := time.Now()
 	if completed {
-		now := "NOW()"
 		completedAt = &now
 	}
 
-	_, err = db.Pool.Exec(ctx, upsertQuery, userID, req.ExerciseID, completed, 100.0, completedAt)
+	log.Printf("Executing SQL with params: userID=%d, exerciseID=%d, status=%s, completed=%t, best_score=100.00, completedAt=%v, now=%v",
+		userID, req.ExerciseID, req.Status, completed, completedAt, now)
+
+	_, err = db.Pool.Exec(ctx, upsertQuery, userID, req.ExerciseID, req.Status, completed, "100.00", completedAt, now)
 	if err != nil {
+		log.Printf("Database error in UpdateProgressHandler: %v", err)
+		log.Printf("SQL query: %s", upsertQuery)
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
 	}
+
+	log.Printf("SQL executed successfully")
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{

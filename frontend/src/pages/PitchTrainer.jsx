@@ -1,4 +1,84 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
+
+// CSS анимации для тюнера
+const tunerStyles = `
+  @keyframes wave {
+    0% { transform: translateX(-20px); opacity: 0; }
+    100% { transform: translateX(20px); opacity: 1; }
+  }
+  
+  @keyframes pulse {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.1); }
+  }
+  
+  @keyframes shine {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 5px rgba(76, 175, 80, 0.5); }
+    50% { box-shadow: 0 0 20px rgba(76, 175, 80, 0.8); }
+  }
+  
+  /* Адаптивный дизайн */
+  @media (max-width: 768px) {
+    .tuner-container {
+      padding: 16px !important;
+      margin: 16px !important;
+    }
+    
+    .tuner-circle {
+      width: 160px !important;
+      height: 160px !important;
+    }
+    
+    .tuner-inner {
+      width: 120px !important;
+      height: 120px !important;
+    }
+    
+    .tuner-arrow {
+      height: 50px !important;
+    }
+    
+    .chord-circle {
+      width: 100px !important;
+      height: 100px !important;
+    }
+    
+    .chord-note {
+      width: 20px !important;
+      height: 20px !important;
+      font-size: 8px !important;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .tuner-circle {
+      width: 140px !important;
+      height: 140px !important;
+    }
+    
+    .tuner-inner {
+      width: 100px !important;
+      height: 100px !important;
+    }
+    
+    .tuner-arrow {
+      height: 40px !important;
+    }
+  }
+`;
+
+// Добавляем стили в head
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement("style");
+  styleSheet.type = "text/css";
+  styleSheet.innerText = tunerStyles;
+  document.head.appendChild(styleSheet);
+}
 
 // ===== Ноты (как у тебя) =====
 const NOTES = [
@@ -172,11 +252,10 @@ function validateCompleteChord(chordName, requiredNotes, detectedNotes, fundamen
   const hasThird = detectedNotes.includes(requiredNotes[1]);
   const hasFifth = requiredNotes.length > 2 ? detectedNotes.includes(requiredNotes[2]) : true;
   
-  console.log(`🔍 Валидация ${chordName}: корень=${hasRoot}, терция=${hasThird}, квинта=${hasFifth}`);
   
   // ОСЛАБЛЕННЫЕ КРИТЕРИИ: достаточно корня ИЛИ терции для базовой валидации
   if (!hasRoot && !hasThird) {
-    console.log(`❌ ${chordName}: отсутствуют базовые компоненты`);
+    // console.log(`❌ ${chordName}: отсутствуют базовые компоненты`);
     return { isValid: false, confidence: 0 };
   }
   
@@ -187,7 +266,7 @@ function validateCompleteChord(chordName, requiredNotes, detectedNotes, fundamen
     const expectedThirdType = isMinor ? 'minor' : 'major';
     
     if (thirdType && thirdType !== expectedThirdType) {
-      console.log(`⚠️ ${chordName}: неидеальный тип терции (ожидалось ${expectedThirdType}, найдено ${thirdType})`);
+      // console.log(`⚠️ ${chordName}: неидеальный тип терции (ожидалось ${expectedThirdType}, найдено ${thirdType})`);
       thirdValidation = false; // Не отклоняем, но снижаем уверенность
     }
   }
@@ -203,7 +282,7 @@ function validateCompleteChord(chordName, requiredNotes, detectedNotes, fundamen
   if (thirdValidation) confidence += 20;
   else confidence -= 10; // Мягкий штраф вместо отклонения
   
-  console.log(`✅ ${chordName}: валидирован с уверенностью ${confidence}%`);
+  // console.log(`✅ ${chordName}: валидирован с уверенностью ${confidence}%`);
   return { isValid: true, confidence };
 }
 
@@ -245,7 +324,7 @@ function suppressHarmonics(peaks) {
   // Открытые струны гитары - они могут звучать как басовые частоты
   const guitarOpenStrings = [82.41, 110.00, 146.83, 196.00, 246.94, 329.63]; // E A D G B E
   
-  console.log(`🔍 Анализ ${peaks.length} пиков для подавления гармоник`);
+  // console.log(`🔍 Анализ ${peaks.length} пиков для подавления гармоник`);
   
   for (const peak of sorted) {
     let isHarmonic = false;
@@ -259,18 +338,18 @@ function suppressHarmonics(peaks) {
         // Проверяем, не является ли это более сильным фундаментальным тоном
         if (peak.amp > fund.amp * 1.5) {
           // Если текущий пик значительно сильнее, возможно это настоящий фундаментальный тон
-          console.log(`🔄 Возможная замена: ${fund.freq.toFixed(1)}Hz -> ${peak.freq.toFixed(1)}Hz (сильнее в ${(peak.amp/fund.amp).toFixed(1)}x)`);
+          // console.log(`🔄 Возможная замена: ${fund.freq.toFixed(1)}Hz -> ${peak.freq.toFixed(1)}Hz (сильнее в ${(peak.amp/fund.amp).toFixed(1)}x)`);
           continue;
         }
         
         // Дополнительная проверка: сильные гармоники (2я, 3я) подавляются строже
         if (Math.round(ratio) <= 3 && Math.abs(ratio - Math.round(ratio)) < 0.08) {
           isHarmonic = true;
-          console.log(`🚫 Подавлена гармоника: ${peak.freq.toFixed(1)}Hz (${Math.round(ratio)}я гармоника от ${fund.freq.toFixed(1)}Hz)`);
+          // console.log(`🚫 Подавлена гармоника: ${peak.freq.toFixed(1)}Hz (${Math.round(ratio)}я гармоника от ${fund.freq.toFixed(1)}Hz)`);
           break;
         } else if (Math.round(ratio) > 3 && Math.abs(ratio - Math.round(ratio)) < 0.12) {
           isHarmonic = true;
-          console.log(`🚫 Подавлена гармоника: ${peak.freq.toFixed(1)}Hz (${Math.round(ratio)}я гармоника от ${fund.freq.toFixed(1)}Hz)`);
+          // console.log(`🚫 Подавлена гармоника: ${peak.freq.toFixed(1)}Hz (${Math.round(ratio)}я гармоника от ${fund.freq.toFixed(1)}Hz)`);
           break;
         }
       }
@@ -286,14 +365,14 @@ function suppressHarmonics(peaks) {
       // Для открытых струн добавляем бонус к амплитуде
       if (isOpenString) {
         peak.amp *= 1.3; // Увеличиваем бонус
-        console.log(`🎸 Обнаружена открытая струна: ${peak.freq.toFixed(1)}Hz (бонус +30%)`);
+        // console.log(`🎸 Обнаружена открытая струна: ${peak.freq.toFixed(1)}Hz (бонус +30%)`);
       } else {
-        console.log(`✅ Фундаментальная частота: ${peak.freq.toFixed(1)}Hz (${peak.amp.toFixed(1)}дБ)`);
+        // console.log(`✅ Фундаментальная частота: ${peak.freq.toFixed(1)}Hz (${peak.amp.toFixed(1)}дБ)`);
       }
     }
   }
   
-  console.log(`🎵 Найдено ${fundamental.length} фундаментальных частот`);
+  // console.log(`🎵 Найдено ${fundamental.length} фундаментальных частот`);
   
   // Возвращаем максимум 12 фундаментальных частот (увеличиваем лимит)
   return fundamental.sort((a, b) => b.amp - a.amp).slice(0, 12);
@@ -323,7 +402,7 @@ function lockChordOnConfidentDetection(detectedChord, confidence, setLockedChord
   
   // Блокируем аккорд только при высокой уверенности
   if (confidence >= LOCK_CONFIDENCE_THRESHOLD) {
-    console.log(`🔒 БЛОКИРОВКА аккорда ${detectedChord.name} с уверенностью ${confidence}% на ${lockDuration}мс (тип: ${lockType})`);
+    // console.log(`🔒 БЛОКИРОВКА аккорда ${detectedChord.name} с уверенностью ${confidence}% на ${lockDuration}мс (тип: ${lockType})`);
     
     setLockedChord({
       name: detectedChord.name,
@@ -341,7 +420,7 @@ function lockChordOnConfidentDetection(detectedChord, confidence, setLockedChord
     
     // Устанавливаем таймер для автоматического сброса блокировки
     const timer = setTimeout(() => {
-      console.log(`🔓 Автоматический сброс блокировки аккорда (${lockType})`);
+      // console.log(`🔓 Автоматический сброс блокировки аккорда (${lockType})`);
       setLockedChord(null);
       setLockTimestamp(0);
       lockReleaseTimerRef.current = null;
@@ -395,7 +474,7 @@ function stabilizeChord(candidateChord, chordHistoryRef, stableChordRef, lockedC
     const timeLeft = lockDuration - (now - lockTimestamp);
     const lockIcon = lockedChord.lockType === 'HIGH_CONFIDENCE' ? '🔐' : '🔒';
     
-    console.log(`${lockIcon} Аккорд ${lockedChord.name} заблокирован (${lockedChord.lockType}, осталось ${timeLeft}мс)`);
+    // console.log(`${lockIcon} Аккорд ${lockedChord.name} заблокирован (${lockedChord.lockType}, осталось ${timeLeft}мс)`);
     
     return {
       name: lockedChord.name,
@@ -440,7 +519,7 @@ function stabilizeChord(candidateChord, chordHistoryRef, stableChordRef, lockedC
   // Если аккорд стабильно держится достаточно времени
   if (recentMatches.length >= 2) {
     stableChordRef.current = candidateChord;
-    console.log(`✅ Стабилизированный аккорд: ${candidateChord.name} (${recentMatches.length} подтверждений)`);
+    // console.log(`✅ Стабилизированный аккорд: ${candidateChord.name} (${recentMatches.length} подтверждений)`);
     
     // Попытка заблокировать аккорд при высокой уверенности
     // Используем разные пороги для разных уровней защиты
@@ -486,7 +565,7 @@ function calculateGuitarChordBonus(chordName, requiredNotes, detectedNotes, fund
         );
         if (foundOpen) {
           bonus += 30; // Большой бонус за открытые струны
-          console.log(`🎸 Бонус за открытую струну ${note}: +30`);
+          // console.log(`🎸 Бонус за открытую струну ${note}: +30`);
         }
       }
     }
@@ -500,7 +579,7 @@ function calculateGuitarChordBonus(chordName, requiredNotes, detectedNotes, fund
   
   if (bassNote) {
     bonus += 25;
-    console.log(`🎸 Бонус за басовую ноту ${root}: +25`);
+    // console.log(`🎸 Бонус за басовую ноту ${root}: +25`);
   }
   
   // Специальные паттерны для популярных гитарных аккордов
@@ -523,7 +602,7 @@ function calculateGuitarChordBonus(chordName, requiredNotes, detectedNotes, fund
     
     if (patternMatches.length === pattern.length) {
       bonus += 40; // Большой бонус за полный паттерн
-      console.log(`🎸 Бонус за полный гитарный паттерн ${chordName}: +40`);
+      // console.log(`🎸 Бонус за полный гитарный паттерн ${chordName}: +40`);
     }
   }
   
@@ -576,7 +655,7 @@ function yinPitch(buf, sampleRate, minFreq = 70, maxFreq = 1200, threshold = 0.1
       const x2 = bestTau + 1 <= tauMax ? bestTau + 1 : bestTau;
       const s0 = yin[x0], s1 = yin[bestTau], s2 = yin[x2];
       let refinedTau = bestTau;
-      const denom = (s2 + s0 - 2 * s1);
+  const denom = (s2 + s0 - 2 * s1);
       if (denom !== 0) refinedTau = bestTau + (s2 - s0) / (2 * denom);
 
       const f = sampleRate / refinedTau;
@@ -641,7 +720,7 @@ function detectNoteFrequency(buf, sampleRate, mode = "guitar") {
   const yinFreq = yinPitch(buf, sampleRate, config.minFreq, config.maxFreq, config.threshold);
   const autocorrFreq = autocorrelationPitch(buf, sampleRate, config.minFreq, config.maxFreq);
   
-  console.log(`🔍 Детекция нот (${mode}): YIN=${yinFreq > 0 ? yinFreq.toFixed(1) : 'N/A'}Hz, Autocorr=${autocorrFreq > 0 ? autocorrFreq.toFixed(1) : 'N/A'}Hz`);
+  // console.log(`🔍 Детекция нот (${mode}): YIN=${yinFreq > 0 ? yinFreq.toFixed(1) : 'N/A'}Hz, Autocorr=${autocorrFreq > 0 ? autocorrFreq.toFixed(1) : 'N/A'}Hz`);
   
   // Если результаты близки, используем среднее
   if (yinFreq > 0 && autocorrFreq > 0) {
@@ -649,7 +728,7 @@ function detectNoteFrequency(buf, sampleRate, mode = "guitar") {
     const avgFreq = (yinFreq + autocorrFreq) / 2;
     
     if (diff < avgFreq * 0.15) { // Увеличиваем допуск до 15%
-      console.log(`✅ Комбинированный результат: ${avgFreq.toFixed(1)}Hz`);
+      // console.log(`✅ Комбинированный результат: ${avgFreq.toFixed(1)}Hz`);
       return avgFreq;
     }
   }
@@ -658,11 +737,11 @@ function detectNoteFrequency(buf, sampleRate, mode = "guitar") {
   const result = yinFreq > 0 ? yinFreq : autocorrFreq;
   if (result > 0) {
     const note = findClosestNote(result);
-    console.log(`🎵 Найдена нота: ${note.note} (${result.toFixed(1)}Hz)`);
+    // console.log(`🎵 Найдена нота: ${note.note} (${result.toFixed(1)}Hz)`);
     
     // Коррекция для C4 и близких нот
     if (note.note.includes('C4') && Math.abs(result - 261.63) < 10) {
-      console.log(`🎯 Коррекция C4: ${result.toFixed(1)}Hz -> 261.6Hz`);
+      // console.log(`🎯 Коррекция C4: ${result.toFixed(1)}Hz -> 261.6Hz`);
       return 261.63;
     }
   }
@@ -675,7 +754,7 @@ function detectNoteFrequency(buf, sampleRate, mode = "guitar") {
 function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, lockedChord, lockTimestamp, setLockedChord, setLockTimestamp, lockReleaseTimerRef) {
   // ПРИОРИТЕТНАЯ ПРОВЕРКА: если уже есть заблокированный аккорд с высокой уверенностью, не перезаписываем его
   if (lockedChord && isChordLocked(lockedChord, lockTimestamp) && lockedChord.originalConfidence >= 91) {
-    console.log(`🛡️ ЗАЩИТА: ${lockedChord.name} уже заблокирован с высокой уверенностью ${lockedChord.originalConfidence}%, пропускаем новый анализ`);
+    // console.log(`🛡️ ЗАЩИТА: ${lockedChord.name} уже заблокирован с высокой уверенностью ${lockedChord.originalConfidence}%, пропускаем новый анализ`);
     return {
       name: lockedChord.name,
       confidence: lockedChord.originalConfidence,
@@ -690,7 +769,7 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
   const validValues = freqBuf.filter(val => isFinite(val) && !isNaN(val));
   
   if (validValues.length === 0) {
-    console.log("⚠️ Нет валидных данных в частотном спектре");
+    // console.log("⚠️ Нет валидных данных в частотном спектре");
     return null;
   }
   
@@ -706,7 +785,7 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
   // Более мягкий адаптивный порог
   const adaptiveThreshold = Math.max(-80, safeAvgAmp + (safeMaxAmp - safeAvgAmp) * 0.2);
   
-  console.log(`Адаптивный порог: ${adaptiveThreshold.toFixed(1)}дБ (среднее: ${safeAvgAmp.toFixed(1)}дБ, макс: ${safeMaxAmp.toFixed(1)}дБ, мин: ${safeMinAmp.toFixed(1)}дБ)`);
+  // console.log(`Адаптивный порог: ${adaptiveThreshold.toFixed(1)}дБ (среднее: ${safeAvgAmp.toFixed(1)}дБ, макс: ${safeMaxAmp.toFixed(1)}дБ, мин: ${safeMinAmp.toFixed(1)}дБ)`);
   
   for (let i = 5; i < freqBuf.length - 5; i++) {
     const currentAmp = freqBuf[i];
@@ -734,20 +813,20 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
 
   // Сортируем по амплитуде и берем сильные пики
   peaks.sort((a, b) => b.amp - a.amp);
-  console.log(`📈 Найдено ${peaks.length} пиков, топ-5:`, peaks.slice(0, 5).map(p => `${p.freq.toFixed(1)}Hz (${p.amp.toFixed(1)}дБ)`));
+  // console.log(`📈 Найдено ${peaks.length} пиков, топ-5:`, peaks.slice(0, 5).map(p => `${p.freq.toFixed(1)}Hz (${p.amp.toFixed(1)}дБ)`));
   
   // Снижаем порог для более чувствительной детекции
   let strongPeaks = peaks.slice(0, 25).filter(p => p.amp > -70); // Еще больше снижаем порог
   
   // Если нет сильных пиков, используем все найденные пики
   if (strongPeaks.length === 0 && peaks.length > 0) {
-    console.log("⚠️ Нет сильных пиков, используем все найденные пики");
+    // console.log("⚠️ Нет сильных пиков, используем все найденные пики");
     strongPeaks = peaks.slice(0, 10); // Берем топ-10 пиков
   }
   
   // Если все еще нет пиков, создаем fallback пики из валидных значений
   if (strongPeaks.length === 0 && validValues.length > 0) {
-    console.log("⚠️ Создаем fallback пики из валидных данных");
+    // console.log("⚠️ Создаем fallback пики из валидных данных");
     const sortedValues = [...validValues].sort((a, b) => b - a);
     const topValues = sortedValues.slice(0, 5);
     
@@ -769,7 +848,7 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
   // Подавляем гармоники - оставляем только фундаментальные частоты
   const fundamentalPeaks = suppressHarmonics(strongPeaks);
   
-  console.log(`Анализ завершен. Исходных пиков: ${peaks.length}, Сильных: ${strongPeaks.length}, Фундаментальных: ${fundamentalPeaks.length}`);
+  // console.log(`Анализ завершен. Исходных пиков: ${peaks.length}, Сильных: ${strongPeaks.length}, Фундаментальных: ${fundamentalPeaks.length}`);
   
   const strong = fundamentalPeaks.map(p => ({
     note: normalizePitchClass(findClosestNote(p.freq).note),
@@ -778,8 +857,8 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
   }));
 
   const names = [...new Set(strong.map(n => n.note))];
-  console.log("🎵 Найденные фундаментальные ноты:", names);
-  console.log("📊 Детали частот:", strong.map(s => `${s.note}=${s.freq.toFixed(1)}Hz`).join(', '));
+  // console.log("🎵 Найденные фундаментальные ноты:", names);
+  // console.log("📊 Детали частот:", strong.map(s => `${s.note}=${s.freq.toFixed(1)}Hz`).join(', '));
   
   // Обновляем найденные ноты в UI
   if (setDetectedNotes) {
@@ -800,7 +879,7 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
       const validation = validateCompleteChord(chord, requiredNotes, names, fundamentalPeaks);
       
       if (!validation.isValid) {
-        console.log(`❌ Аккорд ${chord} не прошел валидацию`);
+        // console.log(`❌ Аккорд ${chord} не прошел валидацию`);
         continue; // Пропускаем невалидные аккорды
       }
       
@@ -819,25 +898,25 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
       if (names.includes(root) && names.includes(expectedThird)) {
         const thirdType = getThirdType(root, expectedThird, fundamentalPeaks);
         
-        console.log(`🎵 Анализ ${chord}: корень=${root}, терция=${expectedThird}, тип терции=${thirdType}`);
+        // console.log(`🎵 Анализ ${chord}: корень=${root}, терция=${expectedThird}, тип терции=${thirdType}`);
         
         if (isMinorChord) {
           // Для минорных аккордов требуем малую терцию
           if (thirdType === 'minor') {
             matchScore += 150; // Бонус за правильную минорную терцию
-            console.log(`✅ Подтвержден минорный аккорд ${chord} с малой терцией`);
+            // console.log(`✅ Подтвержден минорный аккорд ${chord} с малой терцией`);
           } else if (thirdType === 'major') {
             matchScore -= 50; // Уменьшаем штраф со 150 до 50
-            console.log(`⚠️ ${chord}: найдена большая терция вместо малой`);
+            // console.log(`⚠️ ${chord}: найдена большая терция вместо малой`);
           }
         } else {
           // Для мажорных аккордов требуем большую терцию
           if (thirdType === 'major') {
             matchScore += 120; // Бонус за правильную мажорную терцию
-            console.log(`✅ Подтвержден мажорный аккорд ${chord} с большой терцией`);
+            // console.log(`✅ Подтвержден мажорный аккорд ${chord} с большой терцией`);
           } else if (thirdType === 'minor') {
             matchScore -= 50; // Уменьшаем штраф со 150 до 50
-            console.log(`⚠️ ${chord}: найдена малая терция вместо большой`);
+            // console.log(`⚠️ ${chord}: найдена малая терция вместо большой`);
           }
         }
         
@@ -853,7 +932,7 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
             if ((isMinorChord && conflictThirdType === 'major') || 
                 (!isMinorChord && conflictThirdType === 'minor')) {
               matchScore -= 80;
-              console.log(`⚠️ Конфликт: ${conflictingChord} может быть более подходящим`);
+              // console.log(`⚠️ Конфликт: ${conflictingChord} может быть более подходящим`);
             }
           }
         }
@@ -874,9 +953,9 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
       
       const totalScore = matchScore + amplitudeBonus - extraNotesPenalty;
       
-      console.log(`🎼 Кандидат аккорда: ${chord} (совпадений: ${matches.length}/${requiredNotes.length}, финальный счет: ${totalScore.toFixed(1)})`);
-      console.log(`   Требуемые ноты: [${requiredNotes.join(', ')}]`);
-      console.log(`   Найденные ноты: [${matches.join(', ')}]`);
+      // console.log(`🎼 Кандидат аккорда: ${chord} (совпадений: ${matches.length}/${requiredNotes.length}, финальный счет: ${totalScore.toFixed(1)})`);
+      // console.log(`   Требуемые ноты: [${requiredNotes.join(', ')}]`);
+      // console.log(`   Найденные ноты: [${matches.join(', ')}]`);
       
       if (totalScore > bestScore) {
         bestScore = totalScore;
@@ -919,18 +998,18 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
           const bestValidation = validateCompleteChord(bestChord, CHORDS[bestChord], names, fundamentalPeaks);
           const conflictValidation = validateCompleteChord(conflictingChord, CHORDS[conflictingChord], names, fundamentalPeaks);
           
-          console.log(`🔍 Конфликт между ${bestChord} (валидация: ${bestValidation.confidence}%) и ${conflictingChord} (валидация: ${conflictValidation.confidence}%)`);
+          // console.log(`🔍 Конфликт между ${bestChord} (валидация: ${bestValidation.confidence}%) и ${conflictingChord} (валидация: ${conflictValidation.confidence}%)`);
           
           // Если конфликтующий аккорд имеет лучшую валидацию, выбираем его
           if (conflictValidation.isValid && conflictValidation.confidence > bestValidation.confidence + 10) {
-            console.log(`🔄 Переключение с ${bestChord} на ${conflictingChord} из-за лучшей валидации`);
+            // console.log(`🔄 Переключение с ${bestChord} на ${conflictingChord} из-за лучшей валидации`);
             bestChord = conflictingChord;
             bestScore = conflictScore;
             bestMatches = conflictMatches;
           } else if (!conflictValidation.isValid || bestValidation.confidence > conflictValidation.confidence + 5) {
             // Оставляем текущий лучший выбор, но снижаем уверенность при близкой конкуренции
             bestScore = Math.max(bestScore - 30, 150);
-            console.log(`⚠️ Снижена уверенность для ${bestChord} из-за конкуренции с ${conflictingChord}`);
+            // console.log(`⚠️ Снижена уверенность для ${bestChord} из-за конкуренции с ${conflictingChord}`);
           }
         }
       }
@@ -956,14 +1035,14 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
     // Дополнительный бонус за гитарные паттерны
     if (bestGuitarBonus > 50) {
       confidence += 10;
-      console.log(`🎸 Бонус к уверенности за гитарные паттерны: +10`);
+      // console.log(`🎸 Бонус к уверенности за гитарные паттерны: +10`);
     }
     
     confidence = Math.max(50, Math.min(95, confidence)); // Ограничиваем диапазон
     
     // МГНОВЕННАЯ БЛОКИРОВКА для высокоуверенных результатов (91%+)
     if (confidence >= 91) {
-      console.log(`⚡ МГНОВЕННАЯ БЛОКИРОВКА: ${bestChord} с уверенностью ${confidence}% - фиксируем немедленно!`);
+      // console.log(`⚡ МГНОВЕННАЯ БЛОКИРОВКА: ${bestChord} с уверенностью ${confidence}% - фиксируем немедленно!`);
       
       // Прямая блокировка без ожидания стабилизации
       lockChordOnConfidentDetection(
@@ -979,9 +1058,9 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
       setChordConfidence(confidence);
     }
     
-    console.log(`🎯 ИТОГОВЫЙ РЕЗУЛЬТАТ: ${bestChord} с уверенностью ${confidence}% (финальный счет: ${bestScore.toFixed(1)})`);
-    console.log(`   Совпавшие ноты: [${bestMatches.join(', ')}]`);
-    console.log(`   📈 Данные основаны на Wikipedia Piano Key Frequencies (A4=440Hz)`);
+    // console.log(`🎯 ИТОГОВЫЙ РЕЗУЛЬТАТ: ${bestChord} с уверенностью ${confidence}% (финальный счет: ${bestScore.toFixed(1)})`);
+    // console.log(`   Совпавшие ноты: [${bestMatches.join(', ')}]`);
+    // console.log(`   📈 Данные основаны на Wikipedia Piano Key Frequencies (A4=440Hz)`);
     return {
       name: bestChord,
       confidence: confidence,
@@ -991,8 +1070,8 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
   }
 
   // ЗАПАСНОЙ АЛГОРИТМ: если строгая валидация не дала результатов, используем упрощенный подход
-  console.log("🚨 Строгая валидация не дала результатов, переходим к упрощенному алгоритму");
-  console.log(`🔍 Доступные ноты для fallback: [${names.join(', ')}]`);
+  // console.log("🚨 Строгая валидация не дала результатов, переходим к упрощенному алгоритму");
+  // console.log(`🔍 Доступные ноты для fallback: [${names.join(', ')}]`);
   
   let fallbackChord = null;
   let fallbackScore = 0;
@@ -1013,7 +1092,7 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
       const root = chord.replace('m', '').replace('#', '').replace('b', '');
       if (names.includes(root)) {
         score += 75; // Большой бонус за наличие корня
-        console.log(`🎯 Fallback: ${chord} - найден корень ${root}`);
+        // console.log(`🎯 Fallback: ${chord} - найден корень ${root}`);
       }
       
       const totalScore = score + amplitudeBonus;
@@ -1024,7 +1103,7 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
         fallbackMatches = matches;
       }
       
-      console.log(`🔍 Fallback кандидат: ${chord} (совпадений: ${matches.length}, счет: ${totalScore.toFixed(1)})`);
+      // console.log(`🔍 Fallback кандидат: ${chord} (совпадений: ${matches.length}, счет: ${totalScore.toFixed(1)})`);
     }
   }
   
@@ -1043,7 +1122,7 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
       setChordConfidence(confidence);
     }
     
-    console.log(`🎯 ЗАПАСНОЙ РЕЗУЛЬТАТ: ${fallbackChord} с уверенностью ${confidence}% (совпадения: [${fallbackMatches.join(', ')}])`);
+    // console.log(`🎯 ЗАПАСНОЙ РЕЗУЛЬТАТ: ${fallbackChord} с уверенностью ${confidence}% (совпадения: [${fallbackMatches.join(', ')}])`);
     return {
       name: fallbackChord,
       confidence: confidence,
@@ -1053,7 +1132,7 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
   }
 
   // ПОСЛЕДНИЙ FALLBACK: если ничего не найдено, пытаемся детектировать по одиночным нотам
-  console.log("🚨 Все алгоритмы не дали результатов, пытаемся детектировать по одиночным нотам");
+  // console.log("🚨 Все алгоритмы не дали результатов, пытаемся детектировать по одиночным нотам");
   
   if (fundamentalPeaks.length > 0) {
     // Берем самую сильную частоту и пытаемся определить аккорд
@@ -1065,7 +1144,7 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
     for (const [chord, requiredNotes] of Object.entries(CHORDS)) {
       const root = chord.replace('m', '').replace('#', '').replace('b', '');
       if (root === noteName) {
-        console.log(`🎯 Последний fallback: найден аккорд ${chord} по корню ${noteName}`);
+        // console.log(`🎯 Последний fallback: найден аккорд ${chord} по корню ${noteName}`);
         
         if (setChordConfidence) {
           setChordConfidence(35); // Низкая уверенность для fallback
@@ -1080,7 +1159,7 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
       }
     }
   }
-  
+
   // Сбрасываем уверенность если ничего не найдено
   if (setChordConfidence) {
     setChordConfidence(0);
@@ -1090,7 +1169,7 @@ function detectChord(freqBuf, sampleRate, setDetectedNotes, setChordConfidence, 
 }
 
 
-export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
+export default function PitchTrainer({ expected, type, onSuccess, onCancel, hidden = false }) {
   const [running, setRunning] = useState(false);
   const [freq, setFreq] = useState(null);
   const [cents, setCents] = useState(null);
@@ -1105,6 +1184,10 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
   // Система фиксации аккордов при уверенном распознавании
   const [lockedChord, setLockedChord] = useState(null); // Заблокированный аккорд
   const [lockTimestamp, setLockTimestamp] = useState(0); // Время блокировки
+  
+  // Система стабилизации стрелки тюнера
+  const [stableCents, setStableCents] = useState(null); // Стабильное значение центов
+  const [tunerStability, setTunerStability] = useState(0); // Уровень стабильности (0-100%)
 
   const audioCtxRef = useRef(null);
   const smoothFreqRef = useRef(null);
@@ -1116,14 +1199,71 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
   const stableChordRef = useRef(null); // Текущий стабильный аккорд
   const lockReleaseTimerRef = useRef(null); // Таймер сброса блокировки аккорда
 
-  // Устанавливаем режим на основе типа упражнения
+  // Рефы для стабилизации тюнера
+  const centsHistoryRef = useRef([]); // История значений центов
+  const stabilityTimerRef = useRef(null); // Таймер для отслеживания стабильности
+
+  // Функция стабилизации стрелки тюнера
+  const stabilizeTunerNeedle = (newCents) => {
+    const now = Date.now();
+    
+    // Добавляем новое значение в историю
+    centsHistoryRef.current.push({
+      cents: newCents,
+      timestamp: now
+    });
+    
+    // Убираем старые записи (старше 1 секунды)
+    centsHistoryRef.current = centsHistoryRef.current.filter(
+      entry => now - entry.timestamp < 1000
+    );
+    
+    // Ограничиваем размер истории
+    if (centsHistoryRef.current.length > 10) {
+      centsHistoryRef.current = centsHistoryRef.current.slice(-10);
+    }
+    
+    // Вычисляем стабильность
+    if (centsHistoryRef.current.length >= 5) {
+      const recentCents = centsHistoryRef.current.map(entry => entry.cents);
+      const avgCents = recentCents.reduce((sum, c) => sum + c, 0) / recentCents.length;
+      const variance = recentCents.reduce((sum, c) => sum + Math.pow(c - avgCents, 2), 0) / recentCents.length;
+      const stability = Math.max(0, Math.min(100, 100 - variance * 2)); // Чем меньше разброс, тем выше стабильность
+      
+      setTunerStability(stability);
+      
+      // Если стабильность высокая (90%+) или отклонение приемлемое (≤20 центов), фиксируем стрелку в центре
+      if ((stability >= 90 && Math.abs(avgCents) < 10) || Math.abs(avgCents) <= 20) {
+        setStableCents(0); // Центрируем стрелку
+        // console.log(`🎯 Центрируем стрелку (стабильность: ${stability.toFixed(1)}%, отклонение: ${avgCents.toFixed(1)}¢)`);
+      } else {
+        setStableCents(null); // Сбрасываем фиксацию
+      }
+    } else {
+      setTunerStability(0);
+      setStableCents(null);
+    }
+  };
+
+  // Устанавливаем режим на основе типа упражнения и автоматически запускаем тюнер
   useEffect(() => {
     if (type === "chord") {
       setMode("chord");
     } else if (type === "note") {
-      setMode("guitar"); // По умолчанию гитара для нот
+      // Определяем режим на основе expected значения
+      if (expected && (expected.includes('C') || expected.includes('D') || expected.includes('E') || expected.includes('F') || expected.includes('G') || expected.includes('A') || expected.includes('B'))) {
+        setMode("piano"); // Если это нота, используем пианино
+      } else {
+        setMode("guitar"); // По умолчанию гитара для нот
+      }
     }
-  }, [type]);
+    
+    // Автоматически запускаем тюнер при использовании в упражнениях
+    if (expected && !running) {
+      setRunning(true); // Устанавливаем флаг, а сам запуск будет в useEffect ниже
+    }
+  }, [type, expected, hidden]); // Убираем startTuner из зависимостей
+
 
   // Проверяем соответствие результата expected значению
   useEffect(() => {
@@ -1161,22 +1301,17 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
     }
   }, [result, expected, type, mode, onSuccess]);
 
-  const startTuner = async () => {
-    if (running) return;
-    
+  const startTuner = useCallback(async () => {
     try {
       setError(null);
-      console.log("Starting tuner...");
       
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       audioCtxRef.current = audioCtx;
 
       await audioCtx.resume();
-      console.log("Audio context resumed");
       
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      console.log("Microphone access granted");
       
       const source = audioCtx.createMediaStreamSource(stream);
 
@@ -1190,7 +1325,7 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
       // Адаптивные band-pass фильтры в зависимости от режима
       const hp = audioCtx.createBiquadFilter();
       hp.type = "highpass"; 
-      
+
       const lp = audioCtx.createBiquadFilter();
       lp.type = "lowpass"; 
       
@@ -1268,7 +1403,6 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
         
         setAudioLevel(rms); // Обновляем индикатор уровня звука
         
-        console.log(`Аудио: RMS=${rms.toFixed(4)}, Peak=${peak.toFixed(4)}, Threshold=${signalThreshold.toFixed(4)}`);
         
         if (rms < signalThreshold) { // Адаптивный порог вместо фиксированного
           animationRef.current = requestAnimationFrame(loop); 
@@ -1283,7 +1417,7 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
           // Улучшенная детекция нот
           let f = detectNoteFrequency(timeBuf, audioCtx.sampleRate, mode);
           if (f > 0) {
-            console.log(`Detected frequency (${mode}):`, f);
+            // console.log(`Detected frequency (${mode}):`, f);
             
             // Улучшенная анти-октавная коррекция
             if (smoothFreqRef.current) {
@@ -1293,16 +1427,16 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
               // Более точная проверка октавных скачков
               if (Math.abs(ratio - 2) < 0.15) {
                 f = f / 2; // Слишком высокая октава
-                console.log("Октавная коррекция: понижение на октаву");
+                // console.log("Октавная коррекция: понижение на октаву");
               } else if (Math.abs(ratio - 0.5) < 0.15) {
                 f = f * 2; // Слишком низкая октава
-                console.log("Октавная коррекция: повышение на октаву");
+                // console.log("Октавная коррекция: повышение на октаву");
               } else if (Math.abs(ratio - 4) < 0.2) {
                 f = f / 4; // Двойная октава
-                console.log("Октавная коррекция: понижение на две октавы");
+                // console.log("Октавная коррекция: понижение на две октавы");
               } else if (Math.abs(ratio - 0.25) < 0.2) {
                 f = f * 4; // Половина октавы
-                console.log("Октавная коррекция: повышение на две октавы");
+                // console.log("Октавная коррекция: повышение на две октавы");
               }
             }
             
@@ -1320,6 +1454,9 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
 
             setFreq(sm.toFixed(2));
             setCents(centsDiff.toFixed(1));
+            
+            // Применяем стабилизацию стрелки
+            stabilizeTunerNeedle(centsDiff);
 
             // Показываем только букву ноты без октавы для всех режимов
             const base = normalizePitchClass(closest.note);
@@ -1356,7 +1493,7 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
             if (hasValidData) {
               chordCandidate = detectChord(freqBuf, audioCtx.sampleRate, setDetectedNotes, setChordConfidence, lockedChord, lockTimestamp, setLockedChord, setLockTimestamp, lockReleaseTimerRef);
             } else {
-              console.log("⚠️ Основной анализатор не дает валидных данных, пробуем fallback");
+              // console.log("⚠️ Основной анализатор не дает валидных данных, пробуем fallback");
               
               // Fallback: используем простой анализатор без фильтров
               const simpleFreqBuf = new Float32Array(simpleAnalyser.frequencyBinCount);
@@ -1364,16 +1501,16 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
               
               const hasSimpleData = simpleFreqBuf.some(val => isFinite(val) && val > -100);
               if (hasSimpleData) {
-                console.log("✅ Fallback анализатор дает валидные данные");
+                // console.log("✅ Fallback анализатор дает валидные данные");
                 chordCandidate = detectChord(simpleFreqBuf, audioCtx.sampleRate, setDetectedNotes, setChordConfidence, lockedChord, lockTimestamp, setLockedChord, setLockTimestamp, lockReleaseTimerRef);
               } else {
-                console.log("❌ Fallback анализатор тоже не дает валидных данных");
+                // console.log("❌ Fallback анализатор тоже не дает валидных данных");
               }
             }
             
             // ПРИОРИТЕТ: если chordCandidate уже заблокированный аккорд, используем его немедленно
             if (chordCandidate && chordCandidate.isLocked) {
-              console.log(`⚡ Используем заблокированный аккорд: ${chordCandidate.name} (${chordCandidate.confidence}%)`);
+              // console.log(`⚡ Используем заблокированный аккорд: ${chordCandidate.name} (${chordCandidate.confidence}%)`);
               const displayText = chordCandidate.lockType === 'HIGH_CONFIDENCE'
                 ? `🔐 ${chordCandidate.name} (${chordCandidate.confidence}% - защищен)`
                 : `🔒 ${chordCandidate.name} (${chordCandidate.confidence}% - заблокирован)`;
@@ -1419,17 +1556,15 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
 
       setRunning(true);
       loop();
-      console.log("Tuner started successfully");
       
     } catch (err) {
       console.error("Error starting tuner:", err);
       setError(`Ошибка: ${err.message}. Убедитесь, что микрофон подключен и разрешен доступ.`);
       setRunning(false);
     }
-  };
+  }, [running, mode]);
 
-  const stopTuner = () => {
-    console.log("Stopping tuner...");
+  const stopTuner = useCallback(() => {
     setRunning(false);
     
     if (animationRef.current) {
@@ -1469,17 +1604,30 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
     setLockedChord(null);
     setLockTimestamp(0);
     
-    console.log("Tuner stopped");
-  };
+    // Сбрасываем стабилизацию тюнера
+    setStableCents(null);
+    setTunerStability(0);
+    centsHistoryRef.current = [];
+  }, []);
+
+  // Запускаем тюнер когда running становится true
+  useEffect(() => {
+    if (running) {
+      startTuner();
+    }
+  }, [running, startTuner]);
 
   // Cleanup при размонтировании компонента
   useEffect(() => {
     return () => {
-      if (running) {
-        stopTuner();
-      }
+      stopTuner();
     };
-  }, [running]);
+  }, [stopTuner]);
+
+  // Если скрытый режим, возвращаем только логику без UI
+  if (hidden) {
+    return null;
+  }
 
   return (
     <div style={{ padding: 16 }}>
@@ -1520,6 +1668,8 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
         </div>
       )}
 
+      {/* Скрываем выбор режима при использовании в упражнениях */}
+      {!expected && (
       <div style={{ marginBottom: 12 }}>
         <label>Режим: </label>
         <select value={mode} onChange={(e) => setMode(e.target.value)} disabled={running}>
@@ -1528,6 +1678,32 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
           <option value="chord">Аккорды</option>
         </select>
       </div>
+      )}
+      
+      {/* Показываем текущий режим и задание при использовании в упражнениях */}
+      {expected && (
+        <div style={{ marginBottom: 12, textAlign: 'center' }}>
+          <div style={{
+            padding: '12px',
+            backgroundColor: '#e8f5e8',
+            borderRadius: '8px',
+            border: '2px solid #4CAF50',
+            marginBottom: '8px'
+          }}>
+            <h3 style={{ margin: '0 0 8px 0', color: '#2E7D32' }}>
+              🎯 Ваша задача:
+            </h3>
+            <p style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 'bold', color: '#1B5E20' }}>
+              Сыграйте: <span style={{ color: '#FF5722' }}>{expected}</span>
+            </p>
+            <p style={{ margin: '0', fontSize: '14px', color: '#2E7D32' }}>
+              {mode === "chord" ? "🎸 Режим: Аккорды" : 
+               mode === "piano" ? "🎹 Режим: Пианино (нота)" : 
+               "🎸 Режим: Гитара (нота)"}
+            </p>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div style={{ color: 'red', marginBottom: 12, padding: 8, border: '1px solid red', borderRadius: 4 }}>
@@ -1548,124 +1724,307 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
       </div>
 
       {running && (
-        <div style={{ marginTop: 20, padding: 16, border: '1px solid #ccc', borderRadius: 8 }}>
-          <h3>Результаты:</h3>
+        <div className="tuner-container" style={{ 
+          marginTop: 20, 
+          padding: '20px', 
+          border: '1px solid #e0e0e0', 
+          borderRadius: '16px',
+          backgroundColor: '#fafafa',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+          maxWidth: '600px',
+          margin: '20px auto 0'
+        }}>
+          <h3 style={{ 
+            textAlign: 'center', 
+            margin: '0 0 24px 0', 
+            color: '#333',
+            fontSize: '24px',
+            fontWeight: 'bold'
+          }}>
+            🎵 Тюнер
+          </h3>
           
-          {/* Улучшенный индикатор уровня звука */}
-          <div style={{ marginBottom: 16 }}>
-            <p><strong>Уровень звука:</strong></p>
+          {/* Красивый визуальный тюнер */}
+          <div style={{ marginBottom: 24 }}>
+            {/* Круговой тюнер */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              marginBottom: 20
+            }}>
+              <div className="tuner-circle" style={{
+                position: 'relative',
+                width: 200,
+                height: 200,
+                borderRadius: '50%',
+                background: 'conic-gradient(from 0deg, #4CAF50 0deg, #FF9800 90deg, #FF5722 180deg, #FF5722 270deg, #4CAF50 360deg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+              }}>
+                {/* Внутренний круг */}
+                <div className="tuner-inner" style={{
+                  width: 160,
+                  height: 160,
+                  borderRadius: '50%',
+                  backgroundColor: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  boxShadow: 'inset 0 4px 16px rgba(0,0,0,0.1)'
+                }}>
+                  {/* Стрелка */}
+                  <div className="tuner-arrow" style={{
+                    position: 'absolute',
+                    width: 3,
+                    height: 70,
+                    backgroundColor: stableCents !== null ? '#4CAF50' : '#333', // Зеленая когда стабильно
+                    borderRadius: '2px',
+                    transformOrigin: 'bottom center',
+                    transform: `rotate(${stableCents !== null ? 0 : (cents ? Math.max(-90, Math.min(90, cents * 2)) : 0)}deg)`,
+                    transition: stableCents !== null ? 'transform 0.5s ease-out, background-color 0.3s ease-out' : 'transform 0.3s ease-out',
+                    boxShadow: stableCents !== null ? '0 2px 12px rgba(76, 175, 80, 0.4)' : '0 2px 8px rgba(0,0,0,0.3)'
+                  }}></div>
+                  
+                  {/* Центральная точка */}
+                  <div style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    backgroundColor: '#333',
+                    position: 'absolute',
+                    zIndex: 2
+                  }}></div>
+                  
+                  {/* Шкала точности */}
+                  {cents && (
+                    <div style={{
+                      position: 'absolute',
+                      top: -40,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      color: stableCents !== null ? '#4CAF50' : 
+                             Math.abs(cents) < 5 ? '#4CAF50' : 
+                             Math.abs(cents) < 20 ? '#FF9800' : '#FF5722'
+                    }}>
+                      {stableCents !== null ? '🎯' :
+                       Math.abs(cents) < 5 ? '🎯' : 
+                       Math.abs(cents) < 20 ? '⚠️' : '❌'}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Индикатор стабильности */}
+            {tunerStability > 50 && (
+              <div style={{ 
+                marginBottom: 12,
+                textAlign: 'center'
+              }}>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#666',
+                  marginBottom: '4px'
+                }}>
+                  Стабильность: {tunerStability.toFixed(0)}%
+                </div>
             <div style={{ 
               width: '100%', 
-              height: '20px', 
-              backgroundColor: '#eee', 
-              borderRadius: '10px',
-              overflow: 'hidden',
-              position: 'relative'
+                  height: '4px',
+                  backgroundColor: '#e0e0e0',
+                  borderRadius: '2px',
+              overflow: 'hidden'
             }}>
               <div style={{ 
-                width: `${Math.min(audioLevel * 2000, 100)}%`,
+                    width: `${tunerStability}%`,
                 height: '100%', 
-                backgroundColor: audioLevel > 0.02 ? '#4CAF50' : 
-                                audioLevel > 0.01 ? '#FF9800' : '#FF5722',
-                transition: 'width 0.1s, background-color 0.1s'
+                    backgroundColor: tunerStability >= 90 ? '#4CAF50' : '#FF9800',
+                    transition: 'width 0.3s ease-out',
+                    borderRadius: '2px'
               }}></div>
-              {/* Индикатор порога */}
-              <div style={{
-                position: 'absolute',
-                left: '30%', // Примерный порог
-                top: 0,
-                height: '100%',
-                width: '2px',
-                backgroundColor: '#333',
-                opacity: 0.5
-              }}></div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#666' }}>
-              <span>RMS: {audioLevel.toFixed(4)}</span>
-              <span>Статус: {audioLevel > 0.02 ? '🎤 Громко' : audioLevel > 0.01 ? '🔊 Средне' : '🔇 Тихо'}</span>
             </div>
           </div>
-          
-          {(mode !== "chord") && freq && (
-            <>
-              <p><strong>Частота:</strong> {freq} Hz</p>
-              <p><strong>Отклонение:</strong> {cents} cents</p>
-            </>
-          )}
-          
-          {/* Показываем найденные ноты для режима аккордов */}
-          {mode === "chord" && detectedNotes.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <p><strong>Обнаруженные ноты:</strong></p>
+            )}
+
+            {/* Индикатор уровня звука с анимацией */}
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ textAlign: 'center', margin: '0 0 12px 0', fontWeight: 'bold' }}>
+                Уровень звука
+              </p>
               <div style={{ 
-                display: 'flex', 
-                gap: '8px', 
-                flexWrap: 'wrap',
-                marginBottom: '8px'
+                width: '100%', 
+                height: '12px', 
+                backgroundColor: '#f0f0f0', 
+                borderRadius: '6px',
+                overflow: 'hidden',
+                position: 'relative',
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
               }}>
-                {detectedNotes.map((note, index) => (
-                  <span key={index} style={{ 
-                    padding: '4px 8px', 
-                    backgroundColor: '#e3f2fd', 
-                    borderRadius: '4px',
-                    fontSize: '14px',
-                    fontWeight: 'bold'
-                  }}>
-                    {note}
-                  </span>
-                ))}
+                <div style={{ 
+                  width: `${Math.min(audioLevel * 2000, 100)}%`,
+                  height: '100%', 
+                  background: audioLevel > 0.02 ? 
+                    'linear-gradient(90deg, #4CAF50, #8BC34A)' : 
+                    audioLevel > 0.01 ? 
+                    'linear-gradient(90deg, #FF9800, #FFC107)' : 
+                    'linear-gradient(90deg, #FF5722, #F44336)',
+                  transition: 'width 0.1s ease-out',
+                  borderRadius: '6px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}></div>
+                
+                {/* Анимированные волны */}
+                {audioLevel > 0.01 && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: `${100 - Math.min(audioLevel * 2000, 100)}%`,
+                    width: '20px',
+                    height: '100%',
+                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)',
+                    animation: 'wave 0.5s ease-in-out infinite alternate'
+                  }}></div>
+                )}
               </div>
               
-              {/* Индикатор уверенности */}
-              {chordConfidence > 0 && (
-                <div style={{ marginTop: '8px' }}>
-                  <p style={{ margin: '4px 0', fontSize: '14px' }}>
-                    <strong>Уверенность: {chordConfidence}%</strong>
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                fontSize: '11px', 
+                color: '#666',
+                marginTop: '8px'
+              }}>
+                <span>🔇 Тихо</span>
+                <span style={{ 
+                  color: audioLevel > 0.02 ? '#4CAF50' : 
+                         audioLevel > 0.01 ? '#FF9800' : '#FF5722',
+                    fontWeight: 'bold'
+                  }}>
+                  {audioLevel > 0.02 ? '🎤 Громко' : 
+                   audioLevel > 0.01 ? '🔊 Средне' : '🔇 Тихо'}
+                  </span>
+                <span>🎤 Громко</span>
+              </div>
+              </div>
+              
+            {/* Визуализация частот (спектр) */}
+            {mode !== "chord" && freq && (
+              <div style={{ marginBottom: 16 }}>
+                <p style={{ textAlign: 'center', margin: '0 0 12px 0', fontWeight: 'bold' }}>
+                  Частотный спектр
                   </p>
                   <div style={{ 
-                    width: '100%', 
-                    height: '8px', 
-                    backgroundColor: '#eee', 
-                    borderRadius: '4px',
-                    overflow: 'hidden'
-                  }}>
-                    <div style={{ 
-                      width: `${chordConfidence}%`, 
-                      height: '100%', 
-                      backgroundColor: chordConfidence >= 75 ? '#4CAF50' : 
-                                     chordConfidence >= 60 ? '#FF9800' : '#F44336',
-                      transition: 'width 0.3s, background-color 0.3s'
-                    }}></div>
-                  </div>
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'end',
+                  height: '60px',
+                  gap: '2px',
+                  padding: '0 20px'
+                }}>
+                  {Array.from({ length: 20 }, (_, i) => {
+                    const freqBin = (i * 2000) / 20; // От 0 до 2000 Hz
+                    const isActive = Math.abs(freqBin - freq) < 50;
+                    const height = isActive ? 60 : Math.random() * 20 + 10;
+                    
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          width: '8px',
+                          height: `${height}px`,
+                          backgroundColor: isActive ? '#4CAF50' : '#E0E0E0',
+                          borderRadius: '4px 4px 0 0',
+                          transition: 'all 0.1s ease-out',
+                          boxShadow: isActive ? '0 2px 8px rgba(76, 175, 80, 0.3)' : 'none'
+                        }}
+                      />
+                    );
+                  })}
                 </div>
-              )}
-              
-              <small style={{ color: '#666', fontSize: '12px' }}>
-                Найдено: {detectedNotes.length} нот | Требуется громкий звук (85%+ уровня)<br/>
-                <span style={{ fontSize: '10px' }}>Частоты аккордов основаны на стандарте A4=440Hz (Wikipedia Piano Key Frequencies)</span>
-              </small>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
+          
+          
           
           {result ? (
             <div>
-              <p style={{ fontSize: '18px', fontWeight: 'bold' }}>{result}</p>
-              {isCorrect && (
-                <div style={{
-                  marginTop: 16,
-                  padding: 12,
-                  backgroundColor: '#4CAF50',
-                  color: 'white',
-                  borderRadius: 8,
-                  textAlign: 'center'
+              {/* Главный результат с анимацией */}
+              <div style={{
+                textAlign: 'center',
+                padding: '16px',
+                backgroundColor: isCorrect ? '#e8f5e8' : '#f5f5f5',
+                borderRadius: '12px',
+                border: isCorrect ? '2px solid #4CAF50' : '2px solid #e0e0e0',
+                marginBottom: 16,
+                position: 'relative',
+                    overflow: 'hidden'
+                  }}>
+                {isCorrect && (
+                    <div style={{ 
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'linear-gradient(45deg, transparent, rgba(76, 175, 80, 0.1), transparent)',
+                    animation: 'shine 1.5s ease-in-out infinite'
+                    }}></div>
+                )}
+                
+                <p style={{ 
+                  fontSize: '20px', 
+                  fontWeight: 'bold',
+                  margin: 0,
+                  color: isCorrect ? '#2e7d32' : '#333',
+                  position: 'relative',
+                  zIndex: 1
                 }}>
-                  <h3 style={{ margin: '0 0 8px 0' }}>🎉 Правильно!</h3>
-                  <p style={{ margin: 0 }}>Отлично! Вы сыграли {expected}!</p>
-                </div>
-              )}
+                  {result}
+                </p>
+                
+                {isCorrect && (
+                  <div style={{
+                    marginTop: 12,
+                    padding: '12px 16px',
+                    backgroundColor: '#4CAF50',
+                    color: 'white',
+                    borderRadius: '8px',
+                    textAlign: 'center',
+                    boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+                    animation: 'glow 2s ease-in-out infinite'
+                  }}>
+                    <h3 style={{ margin: '0 0 8px 0', fontSize: '18px' }}>🎉 Правильно!</h3>
+                    <p style={{ margin: 0, fontSize: '14px' }}>Отлично! Вы сыграли {expected}!</p>
+            </div>
+          )}
+              </div>
+              
             </div>
           ) : (
-            <p style={{ fontStyle: 'italic' }}>Слушаю... Играйте ноту или аккорд</p>
+            <div style={{
+              textAlign: 'center',
+              padding: '20px',
+              backgroundColor: '#f8f9fa',
+              borderRadius: '12px',
+              border: '2px dashed #dee2e6'
+            }}>
+              <div style={{ fontSize: '48px', marginBottom: '12px' }}>🎵</div>
+              <p style={{ 
+                fontStyle: 'italic', 
+                color: '#666',
+                margin: 0,
+                fontSize: '16px'
+              }}>
+                Слушаю... Играйте ноту или аккорд
+              </p>
+            </div>
           )}
         </div>
       )}
@@ -1690,7 +2049,7 @@ export default function PitchTrainer({ expected, type, onSuccess, onCancel }) {
               <li><strong>Гитара:</strong> Оптимизирован для струнных инструментов (80-1200Hz)</li>
               <li><strong>Пианино:</strong> Широкий диапазон для клавишных (60-2000Hz)</li>
               <li><strong>Аккорды:</strong> Анализ нескольких нот одновременно</li>
-            </ul>
+          </ul>
           </div>
         </div>
       )}

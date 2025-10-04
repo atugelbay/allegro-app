@@ -39,11 +39,11 @@ export default function Progress() {
   };
 
   const getProgressColor = (progressValue) => {
-    if (progressValue === 100) return "var(--green-500)";
-    if (progressValue >= 75) return "var(--blue-500)";
-    if (progressValue >= 50) return "var(--yellow-500)";
-    if (progressValue >= 25) return "var(--orange-500)";
-    return "var(--red-500)";
+    if (progressValue === 100) return "#10b981"; // green-500
+    if (progressValue >= 75) return "#3b82f6";  // blue-500
+    if (progressValue >= 50) return "#eab308";  // yellow-500
+    if (progressValue >= 25) return "#f97316";  // orange-500
+    return "#ef4444"; // red-500
   };
 
   const getProgressIcon = (progressValue) => {
@@ -145,13 +145,18 @@ export default function Progress() {
                     </div>
                   </div>
                   
-                  <div className="lesson-progress-bar">
+                  <div className="lesson-progress-bar" style={{ border: '1px solid #e5e7eb' }}>
                     <div 
                       className="lesson-progress-fill"
                       style={{ 
-                        width: `${lesson.progress}%`,
-                        backgroundColor: getProgressColor(lesson.progress)
+                        width: `${Math.round(lesson.progress)}%`,
+                        backgroundColor: getProgressColor(lesson.progress),
+                        minWidth: Math.round(lesson.progress) > 0 ? '4px' : '0px',
+                        height: '100%',
+                        borderRadius: '6px',
+                        transition: 'width 0.5s ease'
                       }}
+                      title={`${Math.round(lesson.progress)}% завершено`}
                     ></div>
                   </div>
                   
