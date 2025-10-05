@@ -1,4 +1,4 @@
-/* App-specific styles */
+/* Modern App Styles */
 .app {
   min-height: 100vh;
   display: flex;
@@ -47,11 +47,10 @@
 
 .page-title {
   font-size: 3rem;
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-weight: 800;
+  color: var(--neutral-800);
   margin-bottom: var(--space-md);
+  letter-spacing: -0.02em;
 }
 
 .page-subtitle {
@@ -59,6 +58,7 @@
   color: var(--neutral-600);
   max-width: 600px;
   margin: 0 auto;
+  line-height: 1.6;
 }
 
 /* Auth Pages Layout */
@@ -79,13 +79,11 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32' fill='none' stroke='rgb(255 255 255 / 0.1)'%3e%3cpath d='m0 2 30 0 0 30 -30 0 z'/%3e%3c/svg%3e") repeat;
-  animation: float 20s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-20px); }
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.2) 0%, transparent 50%);
+  opacity: 1;
 }
 
 .auth-container {
@@ -98,7 +96,7 @@
 
 .auth-card {
   background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: var(--radius-2xl);
   padding: var(--space-2xl);
@@ -117,25 +115,225 @@
 }
 
 .message-error {
-  background: rgb(254 242 242);
+  background: #fef2f2;
   color: var(--error);
-  border: 1px solid rgb(254 226 226);
+  border: 1px solid #fecaca;
 }
 
 .message-success {
-  background: rgb(240 253 244);
+  background: #f0fdf4;
   color: var(--success);
-  border: 1px solid rgb(187 247 208);
+  border: 1px solid #bbf7d0;
 }
 
 .message-warning {
-  background: rgb(255 251 235);
+  background: #fffbeb;
   color: var(--warning);
-  border: 1px solid rgb(254 240 138);
+  border: 1px solid #fed7aa;
+}
+
+/* Lesson Cards */
+.lesson-card {
+  background: white;
+  border-radius: var(--radius-xl);
+  padding: var(--space-xl);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--neutral-100);
+  transition: all var(--transition-normal);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.lesson-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--gradient-primary);
+  transform: scaleX(0);
+  transition: transform var(--transition-normal);
+}
+
+.lesson-card:hover::before {
+  transform: scaleX(1);
+}
+
+.lesson-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-2xl);
+}
+
+.lesson-card h3 {
+  color: var(--neutral-800);
+  margin-bottom: var(--space-sm);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.lesson-card p {
+  color: var(--neutral-600);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: var(--space-md);
+}
+
+.lesson-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  font-size: 0.875rem;
+  color: var(--neutral-500);
+}
+
+.lesson-instrument {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--primary-50);
+  color: var(--primary-700);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+}
+
+.lesson-exercises {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--neutral-100);
+  color: var(--neutral-600);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+}
+
+/* Progress Indicators */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--neutral-200);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin: var(--space-sm) 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--gradient-primary);
+  transition: width var(--transition-normal);
+  border-radius: var(--radius-sm);
+}
+
+.progress-text {
+  font-size: 0.875rem;
+  color: var(--neutral-600);
+  text-align: center;
+}
+
+/* Exercise Cards */
+.exercise-card {
+  background: white;
+  border: 1px solid var(--neutral-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-md);
+  transition: all var(--transition-normal);
+}
+
+.exercise-card:hover {
+  border-color: var(--primary-300);
+  box-shadow: var(--shadow-md);
+}
+
+.exercise-card.active {
+  border-color: var(--primary-500);
+  background: var(--primary-50);
+}
+
+.exercise-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+
+.exercise-title {
+  font-weight: 600;
+  color: var(--neutral-800);
+  margin: 0;
+}
+
+.exercise-status {
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.exercise-status.completed {
+  background: var(--success);
+  color: white;
+}
+
+.exercise-status.current {
+  background: var(--primary-500);
+  color: white;
+}
+
+.exercise-status.pending {
+  background: var(--neutral-200);
+  color: var(--neutral-600);
+}
+
+/* Visualizer Containers */
+.visualizer-container {
+  background: white;
+  border-radius: var(--radius-xl);
+  padding: var(--space-xl);
+  box-shadow: var(--shadow-lg);
+  margin-bottom: var(--space-lg);
+  border: 1px solid var(--neutral-100);
+}
+
+.visualizer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-lg);
+}
+
+.visualizer-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--neutral-800);
+  margin: 0;
+}
+
+.visualizer-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
 /* Responsive adjustments */
-@media (max-width: 480px) {
+@media (max-width: 768px) {
+  .page {
+    padding: var(--space-lg) 0;
+  }
+  
+  .page-title {
+    font-size: 2.5rem;
+  }
+  
+  .page-subtitle {
+    font-size: 1.125rem;
+  }
+  
   .auth-container {
     padding: var(--space-sm);
   }
@@ -144,7 +342,135 @@
     padding: var(--space-xl);
   }
   
+  .lesson-card {
+    padding: var(--space-lg);
+    margin-bottom: var(--space-sm);
+  }
+  
+  .lesson-card h3 {
+    font-size: 1.125rem;
+  }
+  
+  .lesson-card p {
+    font-size: 0.9rem;
+  }
+  
+  .lesson-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+  
+  .visualizer-container {
+    padding: var(--space-lg);
+    margin-bottom: var(--space-md);
+  }
+  
+  .visualizer-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+  
+  .visualizer-title {
+    font-size: 1.125rem;
+  }
+  
+  .visualizer-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: var(--space-md) 0;
+  }
+  
+  .page-header {
+    margin-bottom: var(--space-xl);
+  }
+  
   .page-title {
-    font-size: 2.5rem;
+    font-size: 2rem;
+    line-height: 1.2;
+  }
+  
+  .page-subtitle {
+    font-size: 1rem;
+  }
+  
+  .auth-container {
+    padding: var(--space-xs);
+  }
+  
+  .auth-card {
+    padding: var(--space-lg);
+  }
+  
+  .lesson-card {
+    padding: var(--space-md);
+    margin-bottom: var(--space-sm);
+  }
+  
+  .lesson-card h3 {
+    font-size: 1rem;
+    margin-bottom: var(--space-xs);
+  }
+  
+  .lesson-card p {
+    font-size: 0.85rem;
+    margin-bottom: var(--space-sm);
+  }
+  
+  .lesson-meta {
+    gap: var(--space-xs);
+  }
+  
+  .lesson-instrument,
+  .lesson-exercises {
+    font-size: 0.8rem;
+    padding: 2px var(--space-xs);
+  }
+  
+  .visualizer-container {
+    padding: var(--space-md);
+    margin-bottom: var(--space-sm);
+  }
+  
+  .visualizer-header {
+    margin-bottom: var(--space-md);
+  }
+  
+  .visualizer-title {
+    font-size: 1rem;
+  }
+  
+  .exercise-card {
+    padding: var(--space-md);
+    margin-bottom: var(--space-sm);
+  }
+  
+  .exercise-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-xs);
+  }
+  
+  .exercise-title {
+    font-size: 1rem;
+  }
+  
+  .exercise-status {
+    font-size: 0.7rem;
+    padding: 2px var(--space-xs);
+  }
+  
+  .progress-bar {
+    height: 6px;
+  }
+  
+  .progress-text {
+    font-size: 0.8rem;
   }
 }

@@ -90,7 +90,7 @@ export default function Progress() {
       <div className="progress-container">
         {/* Header */}
         <div className="progress-header">
-          <h1>📊 Ваш прогресс</h1>
+          <h1>Ваш прогресс</h1>
           <p>Отслеживайте свои достижения в изучении музыки</p>
         </div>
 
@@ -135,29 +135,26 @@ export default function Progress() {
                 <div key={lesson.lesson_id} className="lesson-progress-item">
                   <div className="lesson-progress-header">
                     <h3 className="lesson-title">{lesson.lesson_title}</h3>
-                    <div className="lesson-progress-badge">
-                      <span className="progress-icon">
-                        {getProgressIcon(lesson.progress)}
-                      </span>
-                      <span className="progress-percentage">
-                        {Math.round(lesson.progress)}%
-                      </span>
-                    </div>
                   </div>
                   
-                  <div className="lesson-progress-bar" style={{ border: '1px solid #e5e7eb' }}>
-                    <div 
-                      className="lesson-progress-fill"
-                      style={{ 
-                        width: `${Math.round(lesson.progress)}%`,
-                        backgroundColor: getProgressColor(lesson.progress),
-                        minWidth: Math.round(lesson.progress) > 0 ? '4px' : '0px',
-                        height: '100%',
-                        borderRadius: '6px',
-                        transition: 'width 0.5s ease'
-                      }}
-                      title={`${Math.round(lesson.progress)}% завершено`}
-                    ></div>
+                  <div className="lesson-progress-bar-container">
+                    <div className="lesson-progress-bar" style={{ border: '1px solid #e5e7eb' }}>
+                      <div 
+                        className="lesson-progress-fill"
+                        style={{ 
+                          width: `${Math.round(lesson.progress)}%`,
+                          backgroundColor: getProgressColor(lesson.progress),
+                          minWidth: Math.round(lesson.progress) > 0 ? '4px' : '0px',
+                          height: '100%',
+                          borderRadius: '6px',
+                          transition: 'width 0.5s ease'
+                        }}
+                        title={`${Math.round(lesson.progress)}% завершено`}
+                      ></div>
+                    </div>
+                    <span className="progress-percentage-inline">
+                      {Math.round(lesson.progress)}%
+                    </span>
                   </div>
                   
                   <div className="lesson-progress-stats">
